@@ -1,9 +1,7 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { initParse } from "../lib/parseClient";
+import { useState } from "react";
+import { useRouter } from "next/router";
 import Image from "next/image";
+import Parse from "../lib/parseClient"; // ✅ use centralized parseClient
 import {
   Box,
   Button,
@@ -23,18 +21,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    initParse();
-  }, []);
-
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
     try {
-      const Parse = initParse();
       const user = await Parse.User.logIn(username.trim(), password);
-      if (user) router.push("/dashboard");
+      if (user) {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       setError(err?.message ?? "Login failed");
     } finally {
