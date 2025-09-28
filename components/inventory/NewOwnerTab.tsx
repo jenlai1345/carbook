@@ -2,6 +2,9 @@
 import * as React from "react";
 import { Box, TextField, Typography, Grid } from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
+import { DATE_TF_PROPS } from "@/pages/inventory/new";
+import { DatePicker } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
 
 export type NewOwnerForm = {
   newOwnerName: string; // 新車主名
@@ -73,12 +76,13 @@ export default function NewOwnerTab({
             name="newContractDate"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                type="date"
+              <DatePicker
                 label="合約日期"
-                InputLabelProps={{ shrink: true }}
-                fullWidth
+                value={field.value ? dayjs(field.value) : null}
+                onChange={(v) =>
+                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                }
+                slotProps={{ textField: DATE_TF_PROPS }}
               />
             )}
           />
@@ -88,12 +92,13 @@ export default function NewOwnerTab({
             name="handoverDate"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                type="date"
+              <DatePicker
                 label="交車日期"
-                InputLabelProps={{ shrink: true }}
-                fullWidth
+                value={field.value ? dayjs(field.value) : null}
+                onChange={(v) =>
+                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                }
+                slotProps={{ textField: DATE_TF_PROPS }}
               />
             )}
           />
@@ -142,12 +147,13 @@ export default function NewOwnerTab({
             name="newOwnerBirth"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                type="date"
+              <DatePicker
                 label="生日"
-                InputLabelProps={{ shrink: true }}
-                fullWidth
+                value={field.value ? dayjs(field.value) : null}
+                onChange={(v) =>
+                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                }
+                slotProps={{ textField: DATE_TF_PROPS }}
               />
             )}
           />

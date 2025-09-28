@@ -1,6 +1,9 @@
 import * as React from "react";
 import { Box, TextField, Typography, Grid } from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
+import { DatePicker } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
+import { DATE_TF_PROPS } from "@/pages/inventory/new";
 
 export type OriginalOwnerForm = {
   // 基本
@@ -69,12 +72,13 @@ export default function OriginalOwnerTab({
             name="origOwnerBirth"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                type="date"
+              <DatePicker
                 label="生日"
-                InputLabelProps={{ shrink: true }}
-                fullWidth
+                value={field.value ? dayjs(field.value) : null}
+                onChange={(v) =>
+                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                }
+                slotProps={{ textField: DATE_TF_PROPS }}
               />
             )}
           />
@@ -86,12 +90,13 @@ export default function OriginalOwnerTab({
             name="origContractDate"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                type="date"
-                label="合約日"
-                InputLabelProps={{ shrink: true }}
-                fullWidth
+              <DatePicker
+                label="交車日（年/月/日）"
+                value={field.value ? dayjs(field.value) : null}
+                onChange={(v) =>
+                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                }
+                slotProps={{ textField: DATE_TF_PROPS }}
               />
             )}
           />

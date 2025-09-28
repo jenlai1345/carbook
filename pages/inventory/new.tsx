@@ -29,9 +29,18 @@ import {
 } from "@/utils/helpers";
 import OriginalOwnerTab from "@/components/inventory/OriginalOwnerTab";
 import NewOwnerTab from "@/components/inventory/NewOwnerTab";
+import PaymentTab from "@/components/inventory/PaymentTab";
+import ReceiptTab from "@/components/inventory/ReceiptTab";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { zhTW as pickersZhTW } from "@mui/x-date-pickers/locales";
+import dayjs from "dayjs";
+import "dayjs/locale/zh-tw";
 
 const ORIGINAL_OWNER_TAB_INDEX = 3;
 const NEW_OWNER_TAB_INDEX = 5;
+const PAYMENT_TAB_INDEX = 6;
+const RECEIPT_TAB_INDEX = 7;
 
 /* -------------------- styles -------------------- */
 const SaveButton = styled(Button)(({ theme }) => ({
@@ -47,11 +56,22 @@ const SaveButton = styled(Button)(({ theme }) => ({
   "&:hover": { boxShadow: theme.shadows[4], transform: "translateY(-1px)" },
 }));
 
+export const DATE_TF_PROPS = {
+  fullWidth: true,
+  size: "medium" as const, // same as other TextFields
+  variant: "outlined" as const,
+  sx: {
+    // make it exactly the same height as your other inputs
+    "& .MuiOutlinedInput-root": { height: 56 }, // or whatever your TF height is
+    "& .MuiOutlinedInput-input": { py: 0 }, // vertically center text
+  },
+};
+
 /* -------------------- schema -------------------- */
 const headerSchema = z.object({
   plateNo: z.string().min(1, "必填"),
   prevPlateNo: z.string().optional().or(z.literal("")),
-  deliverDate: z.string().optional().or(z.literal("")), // YYYY-MM-DD
+  deliverDate: z.string().optional().or(z.literal("")),
   brandId: z.string().optional().or(z.literal("")),
   brandName: z.string().min(1, "必填"),
   seriesId: z.string().optional().or(z.literal("")),
@@ -81,34 +101,27 @@ const basicSchema = z.object({
 });
 
 const originalOwnerSchema = z.object({
-  origOwnerName: z.string().optional().or(z.literal("")), // 原車主名
-  origOwnerPhone: z.string().optional().or(z.literal("")), // 原車主電話
-  origOwnerIdNo: z.string().optional().or(z.literal("")), // 身分字號
-  origOwnerBirth: z.string().optional().or(z.literal("")), // 生日 YYYY-MM-DD
-
-  // originalOwnerSchema (replace the 3 fields)
+  origOwnerName: z.string().optional().or(z.literal("")),
+  origOwnerPhone: z.string().optional().or(z.literal("")),
+  origOwnerIdNo: z.string().optional().or(z.literal("")),
+  origOwnerBirth: z.string().optional().or(z.literal("")),
   origContractDate: z.string().optional().or(z.literal("")),
   origDealPriceWan: z.string().optional().or(z.literal("")),
   origCommissionWan: z.string().optional().or(z.literal("")),
-
-  origOwnerRegZip: z.string().optional().or(z.literal("")), // 戶籍 郵遞區號
-  origOwnerRegAddr: z.string().optional().or(z.literal("")), // 戶籍地址
-  origOwnerMailZip: z.string().optional().or(z.literal("")), // 通訊 郵遞區號
-  origOwnerMailAddr: z.string().optional().or(z.literal("")), // 通訊地址
-
-  consignorName: z.string().optional().or(z.literal("")), // 代售人
+  origOwnerRegZip: z.string().optional().or(z.literal("")),
+  origOwnerRegAddr: z.string().optional().or(z.literal("")),
+  origOwnerMailZip: z.string().optional().or(z.literal("")),
+  origOwnerMailAddr: z.string().optional().or(z.literal("")),
+  consignorName: z.string().optional().or(z.literal("")),
   consignorPhone: z.string().optional().or(z.literal("")),
-  referrerName: z.string().optional().or(z.literal("")), // 介紹人
+  referrerName: z.string().optional().or(z.literal("")),
   referrerPhone: z.string().optional().or(z.literal("")),
-
-  purchasedTransferred: z.string().optional().or(z.literal("")), // 買進已過戶
-  registeredToName: z.string().optional().or(z.literal("")), // 過戶名下
-  procurementMethod: z.string().optional().or(z.literal("")), // 採購方式
-
-  origOwnerNote: z.string().optional().or(z.literal("")), // 備註
+  purchasedTransferred: z.string().optional().or(z.literal("")),
+  registeredToName: z.string().optional().or(z.literal("")),
+  procurementMethod: z.string().optional().or(z.literal("")),
+  origOwnerNote: z.string().optional().or(z.literal("")),
 });
 
-// --- New Owner schema ---
 const newOwnerSchema = z.object({
   newOwnerName: z.string().optional().or(z.literal("")),
   newOwnerPhone: z.string().optional().or(z.literal("")),
@@ -133,12 +146,37 @@ const newOwnerSchema = z.object({
   newOwnerNote: z.string().optional().or(z.literal("")),
 });
 
-// merge
+/* NEW: row schemas */
+const paymentItemSchema = z.object({
+  date: z.string().optional().default(""),
+  amount: z.union([z.number(), z.string()]).optional(),
+  cashOrCheck: z.enum(["現", "票"]),
+  interestStartDate: z.string().optional().default(""),
+  note: z.string().optional().default(""),
+});
+const receiptItemSchema = z.object({
+  date: z.string().optional().default(""),
+  amount: z.union([z.number(), z.string()]).optional(),
+  cashOrCheck: z.enum(["現", "票"]),
+  exchangeDate: z.string().optional().default(""),
+  note: z.string().optional().default(""),
+});
+
+/* NEW: arrays on the form */
+const financeSchema = z.object({
+  payments: z.array(paymentItemSchema).default([]),
+  receipts: z.array(receiptItemSchema).default([]),
+});
+
+/* merge */
 const formSchema = headerSchema
   .and(basicSchema)
   .and(originalOwnerSchema)
-  .and(newOwnerSchema);
+  .and(newOwnerSchema)
+  /* NEW */ .and(financeSchema);
+
 type FormValues = z.infer<typeof formSchema>;
+
 /* -------------------- helpers -------------------- */
 function a11yProps(i: number) {
   return { id: `inv-tab-${i}`, "aria-controls": `inv-tabpanel-${i}` };
@@ -161,6 +199,9 @@ function TabPanel({
 
 const toDateInput = (d?: Date | null): string =>
   d instanceof Date ? d.toISOString().slice(0, 10) : "";
+/* NEW: tolerate string or Date when prefill */
+const toDateStr = (x: any): string =>
+  x instanceof Date ? toDateInput(x) : typeof x === "string" ? x : "";
 
 /* ==================== Page ==================== */
 export default function InventoryNewPage() {
@@ -227,7 +268,6 @@ export default function InventoryNewPage() {
       origCommissionWan: "",
       origOwnerRegZip: "",
       origOwnerMailZip: "",
-
       newOwnerName: "",
       newOwnerPhone: "",
       newContractDate: "",
@@ -249,18 +289,19 @@ export default function InventoryNewPage() {
       salesMode: "",
       preferredShop: "",
       newOwnerNote: "",
+      /* NEW: arrays */
+      payments: [],
+      receipts: [],
     },
   });
 
-  // watch values for dependent queries
+  // watch brand for series query
   const watchedBrandId = useWatch({ control, name: "brandId" });
 
-  /* --------- remote Autocomplete options --------- */
   interface Option {
     id: string;
     name: string;
   }
-
   const [brandOpts, setBrandOpts] = React.useState<Option[]>([]);
   const [brandInput, setBrandInput] = React.useState("");
   const debBrand = useDebounce(brandInput);
@@ -269,7 +310,8 @@ export default function InventoryNewPage() {
   const [seriesInput, setSeriesInput] = React.useState("");
   const debSeries = useDebounce(seriesInput);
 
-  // Load Brand options
+  /* ... (brand & series effects unchanged) ... */
+
   React.useEffect(() => {
     let active = true;
     (async () => {
@@ -289,7 +331,6 @@ export default function InventoryNewPage() {
     };
   }, [debBrand]);
 
-  // Load Series options (by brand)
   React.useEffect(() => {
     let active = true;
     (async () => {
@@ -303,10 +344,7 @@ export default function InventoryNewPage() {
       const r = await q.find();
       if (active) {
         const arr = r
-          .map((x) => ({
-            id: (x.id || "") as string,
-            name: x.get("name") as string,
-          }))
+          .map((x) => ({ id: x.id || "", name: x.get("name") as string }))
           .filter((o) => o.id !== "");
         setSeriesOpts(arr);
       }
@@ -325,7 +363,7 @@ export default function InventoryNewPage() {
       try {
         const Car = Parse.Object.extend("Car");
         const q = new Parse.Query(Car);
-        q.include(["brand", "series", "originalOwner", "newOwner"]); // include newOwner
+        q.include(["brand", "series", "originalOwner", "newOwner"]);
         const o = await q.get(carId);
         if (!alive) return;
 
@@ -354,7 +392,6 @@ export default function InventoryNewPage() {
         }
 
         const baseValues: FormValues = {
-          // header
           plateNo: o.get("plateNo") ?? "",
           prevPlateNo: o.get("prevPlateNo") ?? "",
           deliverDate: toDateInput(o.get("deliverDate")),
@@ -366,7 +403,6 @@ export default function InventoryNewPage() {
           buyPriceWan: (o.get("buyPriceWan") ?? "").toString(),
           sellPriceWan: (o.get("sellPriceWan") ?? "").toString(),
 
-          // basic
           factoryYM: o.get("factoryYM") ?? "",
           plateYM: o.get("plateYM") ?? "",
           model: o.get("model") ?? "",
@@ -384,7 +420,7 @@ export default function InventoryNewPage() {
           returnDate: toDateInput(o.get("returnDate")),
           disposition: o.get("disposition") ?? "",
 
-          // original owner
+          // original owner (defaults)
           origOwnerName: "",
           origOwnerPhone: "",
           origOwnerIdNo: "",
@@ -405,7 +441,7 @@ export default function InventoryNewPage() {
           procurementMethod: "",
           origOwnerNote: "",
 
-          // new owner
+          // new owner (defaults)
           newOwnerName: "",
           newOwnerPhone: "",
           newContractDate: "",
@@ -427,6 +463,10 @@ export default function InventoryNewPage() {
           salesMode: "",
           preferredShop: "",
           newOwnerNote: "",
+
+          /* NEW: arrays */
+          payments: [],
+          receipts: [],
         };
 
         // original owner prefill
@@ -498,6 +538,25 @@ export default function InventoryNewPage() {
         } else {
           setNewOwnerId(null);
         }
+
+        /* NEW: payments / receipts prefill */
+        const paymentsRaw = (o.get("payments") as any[]) || [];
+        baseValues.payments = paymentsRaw.map((p) => ({
+          date: toDateStr(p?.date),
+          amount: p?.amount ?? "",
+          cashOrCheck: p?.cashOrCheck === "票" ? "票" : "現",
+          interestStartDate: toDateStr(p?.interestStartDate),
+          note: p?.note ?? "",
+        }));
+
+        const receiptsRaw = (o.get("receipts") as any[]) || [];
+        baseValues.receipts = receiptsRaw.map((r) => ({
+          date: toDateStr(r?.date),
+          amount: r?.amount ?? "",
+          cashOrCheck: r?.cashOrCheck === "票" ? "票" : "現",
+          exchangeDate: toDateStr(r?.exchangeDate),
+          note: r?.note ?? "",
+        }));
 
         reset(baseValues);
       } finally {
@@ -578,12 +637,12 @@ export default function InventoryNewPage() {
     // default status on create
     if (!carId) car.set("status", "active");
 
-    /* ================== NEW: Tab 3 — create/update Owner & set pointer ================== */
+    // Tabs 3 / 5: save Owner pointers (unchanged)
     if (tab === ORIGINAL_OWNER_TAB_INDEX) {
       const Owner = Parse.Object.extend("Owner");
       const owner = origOwnerId
-        ? Owner.createWithoutData(origOwnerId) // update existing
-        : new Owner(); // create new
+        ? Owner.createWithoutData(origOwnerId)
+        : new Owner();
 
       owner.set("name", v.origOwnerName || null);
       owner.set("idNo", v.origOwnerIdNo || null);
@@ -610,22 +669,18 @@ export default function InventoryNewPage() {
         "commissionWan",
         v.origCommissionWan ? Number(v.origCommissionWan) : null
       );
+      owner.set("phone", v.origOwnerPhone || null);
       if (u) owner.set("user", u);
 
       await owner.save();
-
-      // Set pointer on the Car and save Car
       car.set("originalOwner", owner);
       await car.save();
 
-      // Update local state so subsequent edits know there's an existing Owner
       if (!origOwnerId) setOrigOwnerId(owner.id);
-
       alert(origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立");
       router.push("/dashboard");
-      return; // stop here; don't run the car alert below
-    } // ---------------- Tab 6: New Owner ----------------
-    else if (tab === NEW_OWNER_TAB_INDEX) {
+      return;
+    } else if (tab === NEW_OWNER_TAB_INDEX) {
       const Owner = Parse.Object.extend("Owner");
       const buyer = newOwnerId
         ? Owner.createWithoutData(newOwnerId)
@@ -651,27 +706,22 @@ export default function InventoryNewPage() {
       );
       buyer.set("idNo", v.newOwnerIdNo || null);
       buyer.set("birth", v.newOwnerBirth ? new Date(v.newOwnerBirth) : null);
-
       buyer.set("regAddr", v.newOwnerRegAddr || null);
       buyer.set("regZip", v.newOwnerRegZip || null);
       buyer.set("mailAddr", v.newOwnerMailAddr || null);
       buyer.set("mailZip", v.newOwnerMailZip || null);
-
       buyer.set("buyerAgentName", v.buyerAgentName || null);
       buyer.set("buyerAgentPhone", v.buyerAgentPhone || null);
       buyer.set("referrerName2", v.referrerName2 || null);
       buyer.set("referrerPhone2", v.referrerPhone2 || null);
-
       buyer.set("salesmanName", v.salesmanName || null);
       buyer.set(
         "salesCommissionPct",
         v.salesCommissionPct ? Number(v.salesCommissionPct) : null
       );
       buyer.set("salesMode", v.salesMode || null);
-
       buyer.set("preferredShop", v.preferredShop || null);
       buyer.set("note", v.newOwnerNote || null);
-
       if (u) buyer.set("user", u);
 
       await buyer.save();
@@ -679,26 +729,39 @@ export default function InventoryNewPage() {
       await car.save();
 
       if (!newOwnerId) setNewOwnerId(buyer.id);
-
       alert(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
       router.push("/dashboard");
       return;
     }
 
-    /* ================================================================================ */
+    /* NEW: save payments / receipts with main car save */
+    const payments = (v.payments || []).map((p) => ({
+      date: p.date || null,
+      amount: p.amount === "" || p.amount == null ? 0 : Number(p.amount),
+      cashOrCheck: p.cashOrCheck,
+      interestStartDate: p.interestStartDate || null,
+      note: p.note || null,
+    }));
+    const receipts = (v.receipts || []).map((r) => ({
+      date: r.date || null,
+      amount: r.amount === "" || r.amount == null ? 0 : Number(r.amount),
+      cashOrCheck: r.cashOrCheck,
+      exchangeDate: r.exchangeDate || null,
+      note: r.note || null,
+    }));
+    car.set("payments", payments);
+    car.set("receipts", receipts);
 
-    // Normal car save when not on tab 3
     await car.save();
     alert(carId ? "✅ 已更新車籍資料" : "✅ 已新建立車籍資料");
     router.push("/dashboard");
   };
 
-  /* --------- UI helpers for Autocomplete values --------- */
+  // UI helpers for Autocomplete values (unchanged)
   const brandValue = React.useMemo(() => {
     const id = getValues("brandId");
     const name = getValues("brandName");
     return id ? brandOpts.find((o) => o.id === id) ?? null : name || null;
-    // value can be Option | string | null because freeSolo
   }, [brandOpts, getValues("brandId"), getValues("brandName")]);
 
   const seriesValue = React.useMemo(() => {
@@ -709,7 +772,13 @@ export default function InventoryNewPage() {
 
   /* -------------------- render -------------------- */
   return (
-    <div>
+    <LocalizationProvider
+      dateAdapter={AdapterDayjs}
+      adapterLocale="zh-tw"
+      localeText={
+        pickersZhTW.components.MuiLocalizationProvider.defaultProps.localeText
+      }
+    >
       <CarToolbar
         breadcrumbs={[
           { label: "首頁", href: "/dashboard", showHomeIcon: true },
@@ -718,7 +787,7 @@ export default function InventoryNewPage() {
       />
 
       <Container maxWidth="lg" sx={{ pb: 8 }}>
-        {/* Fixed top section */}
+        {/* ... 上方固定欄位區塊（原樣） ... */}
         <Paper
           variant="outlined"
           sx={{
@@ -759,12 +828,13 @@ export default function InventoryNewPage() {
                 name="deliverDate"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    type="date"
+                  <DatePicker
                     label="交車日（年/月/日）"
-                    InputLabelProps={{ shrink: true }}
-                    fullWidth
+                    value={field.value ? dayjs(field.value) : null}
+                    onChange={(v) =>
+                      field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                    }
+                    slotProps={{ textField: DATE_TF_PROPS }}
                   />
                 )}
               />
@@ -907,7 +977,6 @@ export default function InventoryNewPage() {
               "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015))",
           }}
         >
-          {/* Wrap the whole tab content in ONE form so the Save button can live outside panels */}
           <Box component="form" id="inv-form" onSubmit={handleSubmit(onSubmit)}>
             <Tabs
               value={tab}
@@ -930,36 +999,48 @@ export default function InventoryNewPage() {
             <TabPanel value={tab} index={0}>
               <Box sx={{ p: 2 }}>
                 <Grid container spacing={2}>
+                  {/* 出廠（年/月） — 使用 DatePicker（年/月檢視），表單值為 "YYYY-MM" */}
                   <Grid size={{ xs: 6, md: 4 }}>
                     <Controller
                       name="factoryYM"
                       control={control}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          type="month"
+                        <DatePicker
                           label="出廠（年/月）"
-                          InputLabelProps={{ shrink: true }}
-                          fullWidth
+                          views={["year", "month"]}
+                          value={
+                            field.value ? dayjs(`${field.value}-01`) : null
+                          }
+                          onChange={(v) =>
+                            field.onChange(v ? v.format("YYYY-MM") : "")
+                          }
+                          slotProps={{ textField: DATE_TF_PROPS }}
                         />
                       )}
                     />
                   </Grid>
+
+                  {/* 領牌（年/月） — 使用 DatePicker（年/月檢視），表單值為 "YYYY-MM" */}
                   <Grid size={{ xs: 6, md: 4 }}>
                     <Controller
                       name="plateYM"
                       control={control}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          type="month"
+                        <DatePicker
                           label="領牌（年/月）"
-                          InputLabelProps={{ shrink: true }}
-                          fullWidth
+                          views={["year", "month"]}
+                          value={
+                            field.value ? dayjs(`${field.value}-01`) : null
+                          }
+                          onChange={(v) =>
+                            field.onChange(v ? v.format("YYYY-MM") : "")
+                          }
+                          slotProps={{ textField: DATE_TF_PROPS }}
                         />
                       )}
                     />
                   </Grid>
+
                   <Grid size={{ xs: 6, md: 4 }}>
                     <Controller
                       name="model"
@@ -984,6 +1065,7 @@ export default function InventoryNewPage() {
                       )}
                     />
                   </Grid>
+
                   <Grid size={{ xs: 6, md: 4 }}>
                     <Controller
                       name="transmission"
@@ -1003,6 +1085,7 @@ export default function InventoryNewPage() {
                       )}
                     />
                   </Grid>
+
                   <Grid size={{ xs: 6, md: 4 }}>
                     <Controller
                       name="color"
@@ -1022,6 +1105,7 @@ export default function InventoryNewPage() {
                       )}
                     />
                   </Grid>
+
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Controller
                       name="vin"
@@ -1041,6 +1125,7 @@ export default function InventoryNewPage() {
                       )}
                     />
                   </Grid>
+
                   <Grid size={{ xs: 12, md: 10 }}>
                     <Controller
                       name="equipment"
@@ -1070,6 +1155,7 @@ export default function InventoryNewPage() {
                       )}
                     />
                   </Grid>
+
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Controller
                       name="condition"
@@ -1080,47 +1166,53 @@ export default function InventoryNewPage() {
                     />
                   </Grid>
 
+                  {/* 以下三個改用 DatePicker（日曆中文會由 LocalizationProvider 控制） */}
                   <Grid size={{ xs: 12, md: 4 }}>
                     <Controller
                       name="inboundDate"
                       control={control}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          type="date"
+                        <DatePicker
                           label="進廠日（年/月/日）"
-                          InputLabelProps={{ shrink: true }}
-                          fullWidth
+                          value={field.value ? dayjs(field.value) : null}
+                          onChange={(v) =>
+                            field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                          }
+                          slotProps={{ textField: DATE_TF_PROPS }}
                         />
                       )}
                     />
                   </Grid>
+
                   <Grid size={{ xs: 12, md: 4 }}>
                     <Controller
                       name="promisedDate"
                       control={control}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          type="date"
+                        <DatePicker
                           label="預交日（年/月/日）"
-                          InputLabelProps={{ shrink: true }}
-                          fullWidth
+                          value={field.value ? dayjs(field.value) : null}
+                          onChange={(v) =>
+                            field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                          }
+                          slotProps={{ textField: DATE_TF_PROPS }}
                         />
                       )}
                     />
                   </Grid>
+
                   <Grid size={{ xs: 12, md: 4 }}>
                     <Controller
                       name="returnDate"
                       control={control}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          type="date"
+                        <DatePicker
                           label="回公司日（年/月/日）"
-                          InputLabelProps={{ shrink: true }}
-                          fullWidth
+                          value={field.value ? dayjs(field.value) : null}
+                          onChange={(v) =>
+                            field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                          }
+                          slotProps={{ textField: DATE_TF_PROPS }}
                         />
                       )}
                     />
@@ -1140,31 +1232,37 @@ export default function InventoryNewPage() {
             </TabPanel>
 
             <TabPanel value={tab} index={1}>
-              <div></div>
+              <div />
             </TabPanel>
             <TabPanel value={tab} index={2}>
-              <div></div>
+              <div />
             </TabPanel>
+
             <TabPanel value={tab} index={3}>
               <OriginalOwnerTab control={control} errors={errors} />
             </TabPanel>
+
             <TabPanel value={tab} index={4}>
-              <div></div>
+              <div />
             </TabPanel>
+
             <TabPanel value={tab} index={5}>
               <NewOwnerTab control={control} errors={errors} />
             </TabPanel>
+
             <TabPanel value={tab} index={6}>
-              <div></div>
-            </TabPanel>
-            <TabPanel value={tab} index={7}>
-              <div></div>
-            </TabPanel>
-            <TabPanel value={tab} index={8}>
-              <div></div>
+              <PaymentTab control={control} name="payments" />
             </TabPanel>
 
-            {/* Sticky footer Save button — always visible */}
+            <TabPanel value={tab} index={7}>
+              <ReceiptTab control={control} name="receipts" />
+            </TabPanel>
+
+            <TabPanel value={tab} index={8}>
+              <div />
+            </TabPanel>
+
+            {/* Sticky footer Save */}
             <Box
               sx={{
                 position: "sticky",
@@ -1189,7 +1287,6 @@ export default function InventoryNewPage() {
         </Paper>
       </Container>
 
-      {/* Global loading while prefill */}
       {loading && (
         <Stack
           alignItems="center"
@@ -1198,6 +1295,6 @@ export default function InventoryNewPage() {
           <CircularProgress />
         </Stack>
       )}
-    </div>
+    </LocalizationProvider>
   );
 }
