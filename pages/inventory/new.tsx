@@ -1,9 +1,10 @@
 // pages/inventory/new.tsx
 import * as React from "react";
-import Grid from "@mui/material/Grid";
+// Grid2 for size={{ xs, md }}
 import {
   Box,
   Container,
+  Grid,
   Paper,
   Tabs,
   Tab,
@@ -12,7 +13,9 @@ import {
   Autocomplete,
   Divider,
   Stack,
+  CircularProgress,
 } from "@mui/material";
+import { useRouter } from "next/router";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,68 +23,31 @@ import Parse from "../../lib/parseClient";
 import { styled } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
 import CarToolbar from "@/components/CarToolbar";
+import {
+  ensureBrandByName,
+  ensureSeriesByName,
+  useDebounce,
+} from "@/utils/helpers";
 
 /* -------------------- styles -------------------- */
 const SaveButton = styled(Button)(({ theme }) => ({
   display: "block",
   marginLeft: "auto",
-  marginRight: "auto", // center horizontally
-  width: "100%", // mobile: full width
-  [theme.breakpoints.up("sm")]: { width: "50%" }, // ≥sm: 30%
+  marginRight: "auto",
+  width: "100%",
+  [theme.breakpoints.up("sm")]: { width: "50%" },
   textTransform: "none",
   fontWeight: 700,
   fontSize: 20,
   borderRadius: 10,
   "&:hover": { boxShadow: theme.shadows[4], transform: "translateY(-1px)" },
 }));
-/* -------------------- utils -------------------- */
-function useDebounce<T>(v: T, delay = 350) {
-  const [d, setD] = React.useState(v);
-  React.useEffect(() => {
-    const t = setTimeout(() => setD(v), delay);
-    return () => clearTimeout(t);
-  }, [v, delay]);
-  return d;
-}
-type Option = { id: string; name: string };
-
-async function ensureBrandByName(name: string): Promise<string> {
-  const q = new Parse.Query("Brand");
-  q.equalTo("name", name.trim());
-  const exist = await q.first();
-  if (exist) return exist.id ?? "";
-  const Brand = Parse.Object.extend("Brand");
-  const b = new Brand();
-  b.set("name", name.trim());
-  const saved = await b.save(); // make sure CLP allows create for logged-in users
-  return saved.id;
-}
-
-async function ensureSeriesByName(
-  name: string,
-  brandId: string
-): Promise<string> {
-  const Brand = Parse.Object.extend("Brand");
-  const brandPtr = Brand.createWithoutData(brandId);
-  const q = new Parse.Query("Series");
-  q.equalTo("name", name.trim());
-  q.equalTo("brand", brandPtr);
-  const exist = await q.first();
-  if (exist) return exist.id ?? "";
-  const Series = Parse.Object.extend("Series");
-  const s = new Series();
-  s.set("name", name.trim());
-  s.set("brand", brandPtr);
-  const saved = await s.save();
-  return saved.id;
-}
 
 /* -------------------- schema -------------------- */
 const headerSchema = z.object({
   plateNo: z.string().min(1, "必填"),
   prevPlateNo: z.string().optional().or(z.literal("")),
   deliverDate: z.string().optional().or(z.literal("")), // YYYY-MM-DD
-  // brand/series keep both id + name
   brandId: z.string().optional().or(z.literal("")),
   brandName: z.string().min(1, "必填"),
   seriesId: z.string().optional().or(z.literal("")),
@@ -133,15 +99,22 @@ function TabPanel({
   );
 }
 
+const toDateInput = (d?: Date | null): string =>
+  d instanceof Date ? d.toISOString().slice(0, 10) : "";
+
 /* ==================== Page ==================== */
 export default function InventoryNewPage() {
+  const router = useRouter();
+  const { carId } = router.query as { carId?: string };
   const [tab, setTab] = React.useState(0);
+  const [loading, setLoading] = React.useState<boolean>(!!carId);
 
   const {
     control,
     handleSubmit,
     setValue,
     getValues,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -175,11 +148,15 @@ export default function InventoryNewPage() {
     },
   });
 
-  // watch brandId to filter series list
+  // watch values for dependent queries
   const watchedBrandId = useWatch({ control, name: "brandId" });
-  const watchedBrandName = useWatch({ control, name: "brandName" });
 
   /* --------- remote Autocomplete options --------- */
+  interface Option {
+    id: string;
+    name: string;
+  }
+
   const [brandOpts, setBrandOpts] = React.useState<Option[]>([]);
   const [brandInput, setBrandInput] = React.useState("");
   const debBrand = useDebounce(brandInput);
@@ -188,6 +165,7 @@ export default function InventoryNewPage() {
   const [seriesInput, setSeriesInput] = React.useState("");
   const debSeries = useDebounce(seriesInput);
 
+  // Load Brand options
   React.useEffect(() => {
     let active = true;
     (async () => {
@@ -195,18 +173,19 @@ export default function InventoryNewPage() {
       if (debBrand) q.matches("name", debBrand, "i");
       q.ascending("name").limit(20);
       const r = await q.find();
-      if (active)
-        setBrandOpts(
-          r
-            .map((x) => ({ id: x.id!, name: x.get("name") }))
-            .filter((option) => option.id !== undefined)
-        );
+      if (active) {
+        const arr = r
+          .map((x) => ({ id: x.id as string, name: x.get("name") as string }))
+          .filter((o) => !!o.id);
+        setBrandOpts(arr);
+      }
     })();
     return () => {
       active = false;
     };
   }, [debBrand]);
 
+  // Load Series options (by brand)
   React.useEffect(() => {
     let active = true;
     (async () => {
@@ -218,50 +197,134 @@ export default function InventoryNewPage() {
       if (debSeries) q.matches("name", debSeries, "i");
       q.ascending("name").limit(20);
       const r = await q.find();
-      if (active)
-        setSeriesOpts(
-          r
-            .map((x) => ({ id: x.id || "", name: x.get("name") }))
-            .filter((option) => option.id !== "")
-        );
+      if (active) {
+        const arr = r
+          .map((x) => ({
+            id: (x.id || "") as string,
+            name: x.get("name") as string,
+          }))
+          .filter((o) => o.id !== "");
+        setSeriesOpts(arr);
+      }
     })();
     return () => {
       active = false;
     };
   }, [debSeries, watchedBrandId]);
 
-  /* --------- submit --------- */
+  /* --------- prefill if carId --------- */
+  React.useEffect(() => {
+    if (!carId) return;
+    let alive = true;
+    (async () => {
+      try {
+        const Car = Parse.Object.extend("Car");
+        const q = new Parse.Query(Car);
+        q.include(["brand", "series"]);
+        const o = await q.get(carId);
+
+        if (!alive) return;
+
+        // Extract pointer names + ids
+        const brandObj = o.get("brand") as Parse.Object | undefined;
+        const seriesObj = o.get("series") as Parse.Object | undefined;
+
+        const brandId = brandObj?.id ?? "";
+        const brandName = brandObj?.get?.("name") ?? "";
+        const seriesId = seriesObj?.id ?? "";
+        const seriesName = seriesObj?.get?.("name") ?? "";
+
+        // Ensure current values appear in Autocomplete options
+        if (brandId && brandName && !brandOpts.find((b) => b.id === brandId)) {
+          setBrandOpts((prev) => [
+            { id: brandId, name: brandName as string },
+            ...prev,
+          ]);
+        }
+        if (
+          seriesId &&
+          seriesName &&
+          !seriesOpts.find((s) => s.id === seriesId)
+        ) {
+          setSeriesOpts((prev) => [
+            { id: seriesId, name: seriesName as string },
+            ...prev,
+          ]);
+        }
+
+        reset({
+          plateNo: o.get("plateNo") ?? "",
+          prevPlateNo: o.get("prevPlateNo") ?? "",
+          deliverDate: toDateInput(o.get("deliverDate")),
+          brandId,
+          brandName: brandName as string,
+          seriesId,
+          seriesName: seriesName as string,
+          style: o.get("style") ?? "",
+          buyPriceWan: (o.get("buyPriceWan") ?? "").toString(),
+          sellPriceWan: (o.get("sellPriceWan") ?? "").toString(),
+          factoryYM: o.get("factoryYM") ?? "",
+          plateYM: o.get("plateYM") ?? "",
+          model: o.get("model") ?? "",
+          displacementCc: (o.get("displacementCc") ?? "").toString(),
+          transmission: o.get("transmission") ?? "",
+          color: o.get("color") ?? "",
+          engineNo: o.get("engineNo") ?? "",
+          vin: o.get("vin") ?? "",
+          dealer: o.get("dealer") ?? "",
+          equipment: o.get("equipment") ?? "",
+          remark: o.get("remark") ?? "",
+          condition: o.get("condition") ?? "",
+          inboundDate: toDateInput(o.get("inboundDate")),
+          promisedDate: toDateInput(o.get("promisedDate")),
+          returnDate: toDateInput(o.get("returnDate")),
+          disposition: o.get("disposition") ?? "",
+        });
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carId]);
+
+  /* --------- submit (create or update) --------- */
   const onSubmit = async (v: FormValues) => {
-    // Ensure we have valid Brand pointer
+    // Ensure we have valid Brand/Series
     let brandId = v.brandId;
     if (!brandId && v.brandName) {
       brandId = await ensureBrandByName(v.brandName);
-      setValue("brandId", brandId);
+      setValue("brandId", brandId || "");
     }
-    // Ensure Series (optional)
     let seriesId = v.seriesId;
     if (!seriesId && v.seriesName && brandId) {
       seriesId = await ensureSeriesByName(v.seriesName, brandId);
-      setValue("seriesId", seriesId);
+      setValue("seriesId", seriesId || "");
     }
 
     const Car = Parse.Object.extend("Car");
-    const car = new Car();
+    const car = carId ? Car.createWithoutData(carId) : new Car();
 
     // pointers
     if (brandId) {
       const Brand = Parse.Object.extend("Brand");
       car.set("brand", Brand.createWithoutData(brandId));
+    } else {
+      car.unset("brand");
     }
     if (seriesId) {
       const Series = Parse.Object.extend("Series");
       car.set("series", Series.createWithoutData(seriesId));
+    } else {
+      car.unset("series");
     }
 
     // top fixed fields
     car.set("plateNo", v.plateNo);
     car.set("prevPlateNo", v.prevPlateNo || null);
-    car.set("deliverDate", v.deliverDate || null);
+    car.set("deliverDate", v.deliverDate ? new Date(v.deliverDate) : null);
     car.set("style", v.style || null);
     car.set("buyPriceWan", v.buyPriceWan ? Number(v.buyPriceWan) : null);
     car.set("sellPriceWan", v.sellPriceWan ? Number(v.sellPriceWan) : null);
@@ -282,13 +345,21 @@ export default function InventoryNewPage() {
     car.set("equipment", v.equipment || null);
     car.set("remark", v.remark || null);
     car.set("condition", v.condition || null);
-    car.set("inboundDate", v.inboundDate || null);
-    car.set("promisedDate", v.promisedDate || null);
-    car.set("returnDate", v.returnDate || null);
+    car.set("inboundDate", v.inboundDate ? new Date(v.inboundDate) : null);
+    car.set("promisedDate", v.promisedDate ? new Date(v.promisedDate) : null);
+    car.set("returnDate", v.returnDate ? new Date(v.returnDate) : null);
     car.set("disposition", v.disposition || null);
 
+    // optional: scope by current user if your schema has `user: Pointer<_User>`
+    const u = Parse.User.current();
+    if (u) car.set("user", u);
+
+    // optional: default status
+    if (!carId) car.set("status", "active");
+
     await car.save();
-    alert("✅ 已新建立車籍資料");
+    alert(carId ? "✅ 已更新車籍資料" : "✅ 已新建立車籍資料");
+    router.push("/dashboard");
   };
 
   /* --------- UI helpers for Autocomplete values --------- */
@@ -296,6 +367,7 @@ export default function InventoryNewPage() {
     const id = getValues("brandId");
     const name = getValues("brandName");
     return id ? brandOpts.find((o) => o.id === id) ?? null : name || null;
+    // value can be Option | string | null because freeSolo
   }, [brandOpts, getValues("brandId"), getValues("brandName")]);
 
   const seriesValue = React.useMemo(() => {
@@ -313,7 +385,7 @@ export default function InventoryNewPage() {
           { label: "車籍資料" },
         ]}
       />
-      ;
+
       <Container maxWidth="lg" sx={{ pb: 8 }}>
         {/* Fixed top section */}
         <Paper
@@ -377,7 +449,7 @@ export default function InventoryNewPage() {
                     freeSolo
                     options={seriesOpts}
                     getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
-                    value={seriesValue}
+                    value={seriesValue as any}
                     onInputChange={(_, v) => {
                       field.onChange(v);
                       setSeriesInput(v);
@@ -403,7 +475,7 @@ export default function InventoryNewPage() {
               />
             </Grid>
 
-            {/* --- 2nd row starts here because md: 6+6+6+3+3 = 24 --- */}
+            {/* --- 2nd row --- */}
             {/* 廠牌 */}
             <Grid size={{ xs: 6, md: 3 }}>
               <Controller
@@ -414,15 +486,13 @@ export default function InventoryNewPage() {
                     freeSolo
                     options={brandOpts}
                     getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
-                    value={brandValue}
+                    value={brandValue as any}
                     onInputChange={(_, v) => {
                       field.onChange(v);
                       setBrandInput(v);
                       setValue("brandId", "");
-                      /* reset series when brand type changes */ setValue(
-                        "seriesId",
-                        ""
-                      );
+                      // reset series when brand changes
+                      setValue("seriesId", "");
                       setValue("seriesName", "");
                     }}
                     onChange={(_, v) => {
@@ -439,6 +509,8 @@ export default function InventoryNewPage() {
                       } else {
                         setValue("brandName", "");
                         setValue("brandId", "");
+                        setValue("seriesId", "");
+                        setValue("seriesName", "");
                       }
                     }}
                     renderInput={(params) => (
@@ -718,7 +790,7 @@ export default function InventoryNewPage() {
                   />
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 12 }}>
+                <Grid size={{ xs: 12 }}>
                   <Controller
                     name="disposition"
                     control={control}
@@ -730,11 +802,12 @@ export default function InventoryNewPage() {
               </Grid>
 
               <Divider sx={{ my: 3 }} />
+
               <Stack direction="row" justifyContent="flex-end" gap={1}>
                 <SaveButton
                   type="submit"
                   variant="contained"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loading}
                 >
                   儲存
                 </SaveButton>
@@ -750,6 +823,16 @@ export default function InventoryNewPage() {
           ))}
         </Paper>
       </Container>
+
+      {/* Global loading while prefill */}
+      {loading && (
+        <Stack
+          alignItems="center"
+          sx={{ position: "fixed", inset: 0, pointerEvents: "none" }}
+        >
+          <CircularProgress />
+        </Stack>
+      )}
     </div>
   );
 }
