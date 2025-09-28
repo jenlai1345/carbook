@@ -1,6 +1,5 @@
 // pages/inventory/new.tsx
 import * as React from "react";
-// Grid2 for size={{ xs, md }}
 import {
   Box,
   Container,
@@ -28,6 +27,11 @@ import {
   ensureSeriesByName,
   useDebounce,
 } from "@/utils/helpers";
+import OriginalOwnerTab from "@/components/inventory/OriginalOwnerTab";
+import NewOwnerTab from "@/components/inventory/NewOwnerTab";
+
+const ORIGINAL_OWNER_TAB_INDEX = 3;
+const NEW_OWNER_TAB_INDEX = 5;
 
 /* -------------------- styles -------------------- */
 const SaveButton = styled(Button)(({ theme }) => ({
@@ -76,9 +80,65 @@ const basicSchema = z.object({
   disposition: z.string().optional().or(z.literal("")),
 });
 
-const formSchema = headerSchema.and(basicSchema);
-type FormValues = z.infer<typeof formSchema>;
+const originalOwnerSchema = z.object({
+  origOwnerName: z.string().optional().or(z.literal("")), // 原車主名
+  origOwnerPhone: z.string().optional().or(z.literal("")), // 原車主電話
+  origOwnerIdNo: z.string().optional().or(z.literal("")), // 身分字號
+  origOwnerBirth: z.string().optional().or(z.literal("")), // 生日 YYYY-MM-DD
 
+  contractDate: z.string().optional().or(z.literal("")), // 合約日
+  dealPriceWan: z.string().optional().or(z.literal("")), // 成交價（萬）
+  commissionWan: z.string().optional().or(z.literal("")), // 佣金（萬）
+
+  origOwnerRegZip: z.string().optional().or(z.literal("")), // 戶籍 郵遞區號
+  origOwnerRegAddr: z.string().optional().or(z.literal("")), // 戶籍地址
+  origOwnerMailZip: z.string().optional().or(z.literal("")), // 通訊 郵遞區號
+  origOwnerMailAddr: z.string().optional().or(z.literal("")), // 通訊地址
+
+  consignorName: z.string().optional().or(z.literal("")), // 代售人
+  consignorPhone: z.string().optional().or(z.literal("")),
+  referrerName: z.string().optional().or(z.literal("")), // 介紹人
+  referrerPhone: z.string().optional().or(z.literal("")),
+
+  purchasedTransferred: z.string().optional().or(z.literal("")), // 買進已過戶
+  registeredToName: z.string().optional().or(z.literal("")), // 過戶名下
+  procurementMethod: z.string().optional().or(z.literal("")), // 採購方式
+
+  origOwnerNote: z.string().optional().or(z.literal("")), // 備註
+});
+
+// --- schema ---
+// --- New Owner schema ---
+const newOwnerSchema = z.object({
+  newOwnerName: z.string().optional().or(z.literal("")),
+  newOwnerPhone: z.string().optional().or(z.literal("")),
+  contractDate: z.string().optional().or(z.literal("")),
+  handoverDate: z.string().optional().or(z.literal("")),
+  dealPriceWan: z.string().optional().or(z.literal("")),
+  commissionWan: z.string().optional().or(z.literal("")),
+  newOwnerIdNo: z.string().optional().or(z.literal("")),
+  newOwnerBirth: z.string().optional().or(z.literal("")),
+  newOwnerRegAddr: z.string().optional().or(z.literal("")),
+  newOwnerRegZip: z.string().optional().or(z.literal("")),
+  newOwnerMailAddr: z.string().optional().or(z.literal("")),
+  newOwnerMailZip: z.string().optional().or(z.literal("")),
+  buyerAgentName: z.string().optional().or(z.literal("")),
+  buyerAgentPhone: z.string().optional().or(z.literal("")),
+  referrerName2: z.string().optional().or(z.literal("")),
+  referrerPhone2: z.string().optional().or(z.literal("")),
+  salesmanName: z.string().optional().or(z.literal("")),
+  salesCommissionPct: z.string().optional().or(z.literal("")),
+  salesMode: z.string().optional().or(z.literal("")),
+  preferredShop: z.string().optional().or(z.literal("")),
+  newOwnerNote: z.string().optional().or(z.literal("")),
+});
+
+// merge
+const formSchema = headerSchema
+  .and(basicSchema)
+  .and(originalOwnerSchema)
+  .and(newOwnerSchema);
+type FormValues = z.infer<typeof formSchema>;
 /* -------------------- helpers -------------------- */
 function a11yProps(i: number) {
   return { id: `inv-tab-${i}`, "aria-controls": `inv-tabpanel-${i}` };
@@ -107,6 +167,9 @@ export default function InventoryNewPage() {
   const router = useRouter();
   const { carId } = router.query as { carId?: string };
   const [tab, setTab] = React.useState(0);
+  const [origOwnerId, setOrigOwnerId] = React.useState<string | null>(null);
+  const [newOwnerId, setNewOwnerId] = React.useState<string | null>(null);
+
   const [loading, setLoading] = React.useState<boolean>(!!carId);
 
   const {
@@ -145,6 +208,46 @@ export default function InventoryNewPage() {
       promisedDate: "",
       returnDate: "",
       disposition: "",
+      origOwnerName: "",
+      origOwnerIdNo: "",
+      origOwnerBirth: "",
+      origOwnerRegAddr: "",
+      origOwnerMailAddr: "",
+      consignorName: "",
+      consignorPhone: "",
+      referrerName: "",
+      referrerPhone: "",
+      purchasedTransferred: "",
+      registeredToName: "",
+      procurementMethod: "",
+      origOwnerNote: "",
+      origOwnerPhone: "",
+      contractDate: "",
+      dealPriceWan: "",
+      commissionWan: "",
+      origOwnerRegZip: "",
+      origOwnerMailZip: "",
+      newOwnerName: "",
+      newOwnerPhone: "",
+      contractDate: "",
+      handoverDate: "",
+      dealPriceWan: "",
+      commissionWan: "",
+      newOwnerIdNo: "",
+      newOwnerBirth: "",
+      newOwnerRegAddr: "",
+      newOwnerRegZip: "",
+      newOwnerMailAddr: "",
+      newOwnerMailZip: "",
+      buyerAgentName: "",
+      buyerAgentPhone: "",
+      referrerName2: "",
+      referrerPhone2: "",
+      salesmanName: "",
+      salesCommissionPct: "",
+      salesMode: "",
+      preferredShop: "",
+      newOwnerNote: "",
     },
   });
 
@@ -215,31 +318,28 @@ export default function InventoryNewPage() {
   /* --------- prefill if carId --------- */
   React.useEffect(() => {
     if (!carId) return;
+
     let alive = true;
     (async () => {
       try {
         const Car = Parse.Object.extend("Car");
         const q = new Parse.Query(Car);
-        q.include(["brand", "series"]);
+        q.include(["brand", "series", "originalOwner", "newOwner"]); // include newOwner
         const o = await q.get(carId);
-
         if (!alive) return;
 
-        // Extract pointer names + ids
         const brandObj = o.get("brand") as Parse.Object | undefined;
         const seriesObj = o.get("series") as Parse.Object | undefined;
+        const ownerObj = o.get("originalOwner") as Parse.Object | undefined;
+        const buyerObj = o.get("newOwner") as Parse.Object | undefined;
 
         const brandId = brandObj?.id ?? "";
-        const brandName = brandObj?.get?.("name") ?? "";
+        const brandName = (brandObj?.get?.("name") as string) ?? "";
         const seriesId = seriesObj?.id ?? "";
-        const seriesName = seriesObj?.get?.("name") ?? "";
+        const seriesName = (seriesObj?.get?.("name") as string) ?? "";
 
-        // Ensure current values appear in Autocomplete options
         if (brandId && brandName && !brandOpts.find((b) => b.id === brandId)) {
-          setBrandOpts((prev) => [
-            { id: brandId, name: brandName as string },
-            ...prev,
-          ]);
+          setBrandOpts((prev) => [{ id: brandId, name: brandName }, ...prev]);
         }
         if (
           seriesId &&
@@ -247,22 +347,25 @@ export default function InventoryNewPage() {
           !seriesOpts.find((s) => s.id === seriesId)
         ) {
           setSeriesOpts((prev) => [
-            { id: seriesId, name: seriesName as string },
+            { id: seriesId, name: seriesName },
             ...prev,
           ]);
         }
 
-        reset({
+        const baseValues: FormValues = {
+          // header
           plateNo: o.get("plateNo") ?? "",
           prevPlateNo: o.get("prevPlateNo") ?? "",
           deliverDate: toDateInput(o.get("deliverDate")),
           brandId,
-          brandName: brandName as string,
+          brandName,
           seriesId,
-          seriesName: seriesName as string,
+          seriesName,
           style: o.get("style") ?? "",
           buyPriceWan: (o.get("buyPriceWan") ?? "").toString(),
           sellPriceWan: (o.get("sellPriceWan") ?? "").toString(),
+
+          // basic
           factoryYM: o.get("factoryYM") ?? "",
           plateYM: o.get("plateYM") ?? "",
           model: o.get("model") ?? "",
@@ -279,11 +382,126 @@ export default function InventoryNewPage() {
           promisedDate: toDateInput(o.get("promisedDate")),
           returnDate: toDateInput(o.get("returnDate")),
           disposition: o.get("disposition") ?? "",
-        });
+
+          // original owner
+          origOwnerName: "",
+          origOwnerPhone: "",
+          origOwnerIdNo: "",
+          origOwnerBirth: "",
+          origContractDate: "",
+          origDealPriceWan: "",
+          origCommissionWan: "",
+          origOwnerRegZip: "",
+          origOwnerRegAddr: "",
+          origOwnerMailZip: "",
+          origOwnerMailAddr: "",
+          consignorName: "",
+          consignorPhone: "",
+          referrerName: "",
+          referrerPhone: "",
+          purchasedTransferred: "",
+          registeredToName: "",
+          procurementMethod: "",
+          origOwnerNote: "",
+
+          // new owner
+          newOwnerName: "",
+          newOwnerPhone: "",
+          newContractDate: "",
+          handoverDate: "",
+          newDealPriceWan: "",
+          newCommissionWan: "",
+          newOwnerIdNo: "",
+          newOwnerBirth: "",
+          newOwnerRegAddr: "",
+          newOwnerRegZip: "",
+          newOwnerMailAddr: "",
+          newOwnerMailZip: "",
+          buyerAgentName: "",
+          buyerAgentPhone: "",
+          referrerName2: "",
+          referrerPhone2: "",
+          salesmanName: "",
+          salesCommissionPct: "",
+          salesMode: "",
+          preferredShop: "",
+          newOwnerNote: "",
+        };
+
+        // original owner prefill
+        if (ownerObj) {
+          setOrigOwnerId(ownerObj.id ?? "");
+          baseValues.origOwnerName = ownerObj.get("name") ?? "";
+          baseValues.origOwnerPhone = ownerObj.get("phone") ?? "";
+          baseValues.origOwnerIdNo = ownerObj.get("idNo") ?? "";
+          baseValues.origOwnerBirth = toDateInput(ownerObj.get("birth"));
+          baseValues.contractDate = toDateInput(ownerObj.get("contractDate"));
+          baseValues.dealPriceWan = (
+            ownerObj.get("dealPriceWan") ?? ""
+          ).toString();
+          baseValues.commissionWan = (
+            ownerObj.get("commissionWan") ?? ""
+          ).toString();
+          baseValues.origOwnerRegZip = ownerObj.get("regZip") ?? "";
+          baseValues.origOwnerRegAddr = ownerObj.get("regAddr") ?? "";
+          baseValues.origOwnerMailZip = ownerObj.get("mailZip") ?? "";
+          baseValues.origOwnerMailAddr = ownerObj.get("mailAddr") ?? "";
+          baseValues.consignorName = ownerObj.get("consignorName") ?? "";
+          baseValues.consignorPhone = ownerObj.get("consignorPhone") ?? "";
+          baseValues.referrerName = ownerObj.get("referrerName") ?? "";
+          baseValues.referrerPhone = ownerObj.get("referrerPhone") ?? "";
+          baseValues.purchasedTransferred =
+            ownerObj.get("purchasedTransferred") ?? "";
+          baseValues.registeredToName = ownerObj.get("registeredToName") ?? "";
+          baseValues.procurementMethod =
+            ownerObj.get("procurementMethod") ?? "";
+          baseValues.origOwnerNote = ownerObj.get("note") ?? "";
+        } else {
+          setOrigOwnerId(null);
+        }
+
+        // new owner prefill
+        if (buyerObj) {
+          setNewOwnerId(buyerObj.id ?? "");
+          baseValues.newOwnerName = buyerObj.get("name") ?? "";
+          baseValues.newOwnerPhone = buyerObj.get("phone") ?? "";
+          baseValues.contractDate =
+            baseValues.contractDate ||
+            toDateInput(buyerObj.get("contractDate"));
+          baseValues.handoverDate = toDateInput(buyerObj.get("handoverDate"));
+          baseValues.dealPriceWan =
+            baseValues.dealPriceWan ||
+            (buyerObj.get("dealPriceWan") ?? "").toString();
+          baseValues.commissionWan =
+            baseValues.commissionWan ||
+            (buyerObj.get("commissionWan") ?? "").toString();
+          baseValues.newOwnerIdNo = buyerObj.get("idNo") ?? "";
+          baseValues.newOwnerBirth = toDateInput(buyerObj.get("birth"));
+          baseValues.newOwnerRegZip = buyerObj.get("regZip") ?? "";
+          baseValues.newOwnerRegAddr = buyerObj.get("regAddr") ?? "";
+          baseValues.newOwnerMailZip = buyerObj.get("mailZip") ?? "";
+          baseValues.newOwnerMailAddr = buyerObj.get("mailAddr") ?? "";
+          baseValues.buyerAgentName = buyerObj.get("buyerAgentName") ?? "";
+          baseValues.buyerAgentPhone = buyerObj.get("buyerAgentPhone") ?? "";
+          baseValues.referrerName2 = buyerObj.get("referrerName2") ?? "";
+          baseValues.referrerPhone2 = buyerObj.get("referrerPhone2") ?? "";
+          baseValues.salesmanName = buyerObj.get("salesmanName") ?? "";
+          baseValues.salesCommissionPct = (
+            buyerObj.get("salesCommissionPct") ?? ""
+          ).toString();
+          baseValues.salesMode = buyerObj.get("salesMode") ?? "";
+          baseValues.preferredShop = buyerObj.get("preferredShop") ?? "";
+          baseValues.newOwnerNote = buyerObj.get("note") ?? "";
+        } else {
+          setNewOwnerId(null);
+        }
+
+        reset(baseValues);
       } finally {
         if (alive) setLoading(false);
       }
     })();
+
     return () => {
       alive = false;
     };
@@ -292,7 +510,7 @@ export default function InventoryNewPage() {
 
   /* --------- submit (create or update) --------- */
   const onSubmit = async (v: FormValues) => {
-    // Ensure we have valid Brand/Series
+    // Ensure Brand/Series exist (unchanged)
     let brandId = v.brandId;
     if (!brandId && v.brandName) {
       brandId = await ensureBrandByName(v.brandName);
@@ -329,7 +547,7 @@ export default function InventoryNewPage() {
     car.set("buyPriceWan", v.buyPriceWan ? Number(v.buyPriceWan) : null);
     car.set("sellPriceWan", v.sellPriceWan ? Number(v.sellPriceWan) : null);
 
-    // 基本 tab
+    // 基本 tab fields
     car.set("factoryYM", v.factoryYM || null);
     car.set("plateYM", v.plateYM || null);
     car.set("model", v.model || null);
@@ -350,13 +568,108 @@ export default function InventoryNewPage() {
     car.set("returnDate", v.returnDate ? new Date(v.returnDate) : null);
     car.set("disposition", v.disposition || null);
 
-    // optional: scope by current user if your schema has `user: Pointer<_User>`
+    // optional: scope by user
     const u = Parse.User.current();
     if (u) car.set("user", u);
 
-    // optional: default status
+    // default status on create
     if (!carId) car.set("status", "active");
 
+    /* ================== NEW: Tab 3 — create/update Owner & set pointer ================== */
+    if (tab === ORIGINAL_OWNER_TAB_INDEX) {
+      const Owner = Parse.Object.extend("Owner");
+      const owner = origOwnerId
+        ? Owner.createWithoutData(origOwnerId) // update existing
+        : new Owner(); // create new
+
+      owner.set("name", v.origOwnerName || null);
+      owner.set("idNo", v.origOwnerIdNo || null);
+      owner.set("birth", v.origOwnerBirth ? new Date(v.origOwnerBirth) : null);
+      owner.set("regAddr", v.origOwnerRegAddr || null);
+      owner.set("mailAddr", v.origOwnerMailAddr || null);
+      owner.set("consignorName", v.consignorName || null);
+      owner.set("consignorPhone", v.consignorPhone || null);
+      owner.set("referrerName", v.referrerName || null);
+      owner.set("referrerPhone", v.referrerPhone || null);
+      owner.set("purchasedTransferred", v.purchasedTransferred || null);
+      owner.set("registeredToName", v.registeredToName || null);
+      owner.set("procurementMethod", v.procurementMethod || null);
+      owner.set("note", v.origOwnerNote || null);
+      if (u) owner.set("user", u);
+
+      await owner.save();
+
+      // Set pointer on the Car and save Car
+      car.set("originalOwner", owner);
+      await car.save();
+
+      // Update local state so subsequent edits know there's an existing Owner
+      if (!origOwnerId) setOrigOwnerId(owner.id);
+
+      alert(origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立");
+      router.push("/dashboard");
+      return; // stop here; don't run the car alert below
+    } // ---------------- Tab 6: New Owner ----------------
+    else if (tab === NEW_OWNER_TAB_INDEX) {
+      const Owner = Parse.Object.extend("Owner");
+      const buyer = newOwnerId
+        ? Owner.createWithoutData(newOwnerId)
+        : new Owner();
+
+      buyer.set("name", v.newOwnerName || null);
+      buyer.set("phone", v.newOwnerPhone || null);
+      buyer.set(
+        "contractDate",
+        v.contractDate ? new Date(v.contractDate) : null
+      );
+      buyer.set(
+        "handoverDate",
+        v.handoverDate ? new Date(v.handoverDate) : null
+      );
+      buyer.set("dealPriceWan", v.dealPriceWan ? Number(v.dealPriceWan) : null);
+      buyer.set(
+        "commissionWan",
+        v.commissionWan ? Number(v.commissionWan) : null
+      );
+      buyer.set("idNo", v.newOwnerIdNo || null);
+      buyer.set("birth", v.newOwnerBirth ? new Date(v.newOwnerBirth) : null);
+
+      buyer.set("regAddr", v.newOwnerRegAddr || null);
+      buyer.set("regZip", v.newOwnerRegZip || null);
+      buyer.set("mailAddr", v.newOwnerMailAddr || null);
+      buyer.set("mailZip", v.newOwnerMailZip || null);
+
+      buyer.set("buyerAgentName", v.buyerAgentName || null);
+      buyer.set("buyerAgentPhone", v.buyerAgentPhone || null);
+      buyer.set("referrerName2", v.referrerName2 || null);
+      buyer.set("referrerPhone2", v.referrerPhone2 || null);
+
+      buyer.set("salesmanName", v.salesmanName || null);
+      buyer.set(
+        "salesCommissionPct",
+        v.salesCommissionPct ? Number(v.salesCommissionPct) : null
+      );
+      buyer.set("salesMode", v.salesMode || null);
+
+      buyer.set("preferredShop", v.preferredShop || null);
+      buyer.set("note", v.newOwnerNote || null);
+
+      if (u) buyer.set("user", u);
+
+      await buyer.save();
+      car.set("newOwner", buyer);
+      await car.save();
+
+      if (!newOwnerId) setNewOwnerId(buyer.id);
+
+      alert(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
+      router.push("/dashboard");
+      return;
+    }
+
+    /* ================================================================================ */
+
+    // Normal car save when not on tab 3
     await car.save();
     alert(carId ? "✅ 已更新車籍資料" : "✅ 已新建立車籍資料");
     router.push("/dashboard");
@@ -576,251 +889,285 @@ export default function InventoryNewPage() {
               "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015))",
           }}
         >
-          <Tabs
-            value={tab}
-            onChange={(_, v) => setTab(v)}
-            variant="scrollable"
-            scrollButtons="auto"
-          >
-            <Tab label="基本" {...a11yProps(0)} />
-            <Tab label="證件" {...a11yProps(1)} />
-            <Tab label="入車" {...a11yProps(2)} />
-            <Tab label="原車主" {...a11yProps(3)} />
-            <Tab label="保險/貸款" {...a11yProps(4)} />
-            <Tab label="新車主" {...a11yProps(5)} />
-            <Tab label="付款" {...a11yProps(6)} />
-            <Tab label="收款" {...a11yProps(7)} />
-            <Tab label="費用" {...a11yProps(8)} />
-          </Tabs>
-
-          {/* 基本 */}
-          <TabPanel value={tab} index={0}>
-            <Box
-              component="form"
-              onSubmit={handleSubmit(onSubmit)}
-              sx={{ p: 2 }}
+          {/* Wrap the whole tab content in ONE form so the Save button can live outside panels */}
+          <Box component="form" id="inv-form" onSubmit={handleSubmit(onSubmit)}>
+            <Tabs
+              value={tab}
+              onChange={(_, v) => setTab(v)}
+              variant="scrollable"
+              scrollButtons="auto"
             >
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                基本資料
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 6, md: 4 }}>
-                  <Controller
-                    name="factoryYM"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        type="month"
-                        label="出廠（年/月）"
-                        InputLabelProps={{ shrink: true }}
-                        fullWidth
-                      />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 6, md: 4 }}>
-                  <Controller
-                    name="plateYM"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        type="month"
-                        label="領牌（年/月）"
-                        InputLabelProps={{ shrink: true }}
-                        fullWidth
-                      />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 6, md: 4 }}>
-                  <Controller
-                    name="model"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="Model" fullWidth />
-                    )}
-                  />
-                </Grid>
+              <Tab label="基本" {...a11yProps(0)} />
+              <Tab label="證件" {...a11yProps(1)} />
+              <Tab label="入車" {...a11yProps(2)} />
+              <Tab label="原車主" {...a11yProps(3)} />
+              <Tab label="保險/貸款" {...a11yProps(4)} />
+              <Tab label="新車主" {...a11yProps(5)} />
+              <Tab label="付款" {...a11yProps(6)} />
+              <Tab label="收款" {...a11yProps(7)} />
+              <Tab label="費用" {...a11yProps(8)} />
+            </Tabs>
 
-                <Grid size={{ xs: 6, md: 4 }}>
-                  <Controller
-                    name="displacementCc"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        label="排氣量"
-                        inputProps={{ inputMode: "numeric" }}
-                        fullWidth
-                      />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 6, md: 4 }}>
-                  <Controller
-                    name="transmission"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        select
-                        SelectProps={{ native: true }}
-                        label="排檔（A/M）"
-                        fullWidth
-                      >
-                        <option value=""></option>
-                        <option value="A">A</option>
-                        <option value="M">M</option>
-                      </TextField>
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 6, md: 4 }}>
-                  <Controller
-                    name="color"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="顏色" fullWidth />
-                    )}
-                  />
-                </Grid>
+            {/* 基本 */}
+            <TabPanel value={tab} index={0}>
+              <Box sx={{ p: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6, md: 4 }}>
+                    <Controller
+                      name="factoryYM"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          type="month"
+                          label="出廠（年/月）"
+                          InputLabelProps={{ shrink: true }}
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6, md: 4 }}>
+                    <Controller
+                      name="plateYM"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          type="month"
+                          label="領牌（年/月）"
+                          InputLabelProps={{ shrink: true }}
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6, md: 4 }}>
+                    <Controller
+                      name="model"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField {...field} label="Model" fullWidth />
+                      )}
+                    />
+                  </Grid>
 
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Controller
-                    name="engineNo"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="引擎號碼" fullWidth />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Controller
-                    name="vin"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="車身號碼" fullWidth />
-                    )}
-                  />
-                </Grid>
+                  <Grid size={{ xs: 6, md: 4 }}>
+                    <Controller
+                      name="displacementCc"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          label="排氣量"
+                          inputProps={{ inputMode: "numeric" }}
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6, md: 4 }}>
+                    <Controller
+                      name="transmission"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          select
+                          SelectProps={{ native: true }}
+                          label="排檔（A/M）"
+                          fullWidth
+                        >
+                          <option value=""></option>
+                          <option value="A">A</option>
+                          <option value="M">M</option>
+                        </TextField>
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6, md: 4 }}>
+                    <Controller
+                      name="color"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField {...field} label="顏色" fullWidth />
+                      )}
+                    />
+                  </Grid>
 
-                <Grid size={{ xs: 12, md: 2 }}>
-                  <Controller
-                    name="dealer"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="代理商" fullWidth />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 10 }}>
-                  <Controller
-                    name="equipment"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="配備" multiline fullWidth />
-                    )}
-                  />
-                </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="engineNo"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField {...field} label="引擎號碼" fullWidth />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="vin"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField {...field} label="車身號碼" fullWidth />
+                      )}
+                    />
+                  </Grid>
 
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Controller
-                    name="remark"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="備註" multiline fullWidth />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Controller
-                    name="condition"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="整備情形" fullWidth />
-                    )}
-                  />
-                </Grid>
+                  <Grid size={{ xs: 12, md: 2 }}>
+                    <Controller
+                      name="dealer"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField {...field} label="代理商" fullWidth />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 10 }}>
+                    <Controller
+                      name="equipment"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          label="配備"
+                          multiline
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </Grid>
 
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <Controller
-                    name="inboundDate"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        type="date"
-                        label="進廠日（年/月/日）"
-                        InputLabelProps={{ shrink: true }}
-                        fullWidth
-                      />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <Controller
-                    name="promisedDate"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        type="date"
-                        label="預交日（年/月/日）"
-                        InputLabelProps={{ shrink: true }}
-                        fullWidth
-                      />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <Controller
-                    name="returnDate"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        type="date"
-                        label="回公司日（年/月/日）"
-                        InputLabelProps={{ shrink: true }}
-                        fullWidth
-                      />
-                    )}
-                  />
-                </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="remark"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          label="備註"
+                          multiline
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="condition"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField {...field} label="整備情形" fullWidth />
+                      )}
+                    />
+                  </Grid>
 
-                <Grid size={{ xs: 12 }}>
-                  <Controller
-                    name="disposition"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="處置" fullWidth />
-                    )}
-                  />
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <Controller
+                      name="inboundDate"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          type="date"
+                          label="進廠日（年/月/日）"
+                          InputLabelProps={{ shrink: true }}
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <Controller
+                      name="promisedDate"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          type="date"
+                          label="預交日（年/月/日）"
+                          InputLabelProps={{ shrink: true }}
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <Controller
+                      name="returnDate"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          type="date"
+                          label="回公司日（年/月/日）"
+                          InputLabelProps={{ shrink: true }}
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12 }}>
+                    <Controller
+                      name="disposition"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField {...field} label="處置" fullWidth />
+                      )}
+                    />
+                  </Grid>
                 </Grid>
-              </Grid>
-
-              <Divider sx={{ my: 3 }} />
-
-              <Stack direction="row" justifyContent="flex-end" gap={1}>
-                <SaveButton
-                  type="submit"
-                  variant="contained"
-                  disabled={isSubmitting || loading}
-                >
-                  儲存
-                </SaveButton>
-              </Stack>
-            </Box>
-          </TabPanel>
-
-          {/* other tabs placeholder */}
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <TabPanel key={i} value={tab} index={i}>
-              <Box sx={{ p: 2, color: "text.secondary" }}>此分頁內容待補</Box>
+              </Box>
             </TabPanel>
-          ))}
+
+            <TabPanel value={tab} index={1}>
+              <div></div>
+            </TabPanel>
+            <TabPanel value={tab} index={2}>
+              <div></div>
+            </TabPanel>
+            <TabPanel value={tab} index={3}>
+              <OriginalOwnerTab control={control} errors={errors} />
+            </TabPanel>
+            <TabPanel value={tab} index={4}>
+              <div></div>
+            </TabPanel>
+            <TabPanel value={tab} index={5}>
+              <NewOwnerTab control={control} errors={errors} />
+            </TabPanel>
+            <TabPanel value={tab} index={6}>
+              <div></div>
+            </TabPanel>
+            <TabPanel value={tab} index={7}>
+              <div></div>
+            </TabPanel>
+            <TabPanel value={tab} index={8}>
+              <div></div>
+            </TabPanel>
+
+            {/* Sticky footer Save button — always visible */}
+            <Box
+              sx={{
+                position: "sticky",
+                bottom: 0,
+                p: 2,
+                display: "flex",
+                justifyContent: "flex-end",
+                bgcolor: "background.paper",
+                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+                zIndex: 1,
+              }}
+            >
+              <SaveButton
+                type="submit"
+                variant="contained"
+                disabled={isSubmitting || loading}
+              >
+                儲存
+              </SaveButton>
+            </Box>
+          </Box>
         </Paper>
       </Container>
 
