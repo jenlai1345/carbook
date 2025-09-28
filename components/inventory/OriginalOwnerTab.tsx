@@ -16,9 +16,9 @@ export type OriginalOwnerForm = {
   origOwnerMailAddr: string; // 通訊地址
 
   // 成交資訊
-  contractDate: string; // NEW: 合約日 YYYY-MM-DD
-  dealPriceWan: string; // NEW: 成交價（萬）
-  commissionWan: string; // NEW: 佣金（萬）
+  origContractDate: string; // NEW: 合約日 YYYY-MM-DD
+  origDealPriceWan: string; // NEW: 成交價（萬）
+  origCommissionWan: string; // NEW: 佣金（萬）
 
   // 其他
   consignorName: string; // 代售人
@@ -83,7 +83,7 @@ export default function OriginalOwnerTab({
         {/* 第二列：合約日 / 成交價 / 佣金 / 原車主電話 */}
         <Grid size={{ xs: 12, md: 3 }}>
           <Controller
-            name="contractDate"
+            name="origContractDate"
             control={control}
             render={({ field }) => (
               <TextField
@@ -98,7 +98,7 @@ export default function OriginalOwnerTab({
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <Controller
-            name="dealPriceWan"
+            name="origDealPriceWan"
             control={control}
             render={({ field }) => (
               <TextField
@@ -112,7 +112,7 @@ export default function OriginalOwnerTab({
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <Controller
-            name="commissionWan"
+            name="origCommissionWan"
             control={control}
             render={({ field }) => (
               <TextField

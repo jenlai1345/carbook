@@ -7,10 +7,10 @@ export type NewOwnerForm = {
   newOwnerName: string; // 新車主名
   newOwnerPhone: string; // 電話
 
-  contractDate: string; // 合約日期 YYYY-MM-DD
+  newContractDate: string; // 合約日期 YYYY-MM-DD
   handoverDate: string; // 交車日期 YYYY-MM-DD
-  dealPriceWan: string; // 成交價（萬）
-  commissionWan: string; // 佣金（萬）
+  newDealPriceWan: string; // 成交價（萬）
+  newCommissionWan: string; // 佣金（萬）
 
   newOwnerIdNo: string; // 身分字號
   newOwnerBirth: string; // 生日 YYYY-MM-DD
@@ -70,7 +70,7 @@ export default function NewOwnerTab({
         {/* 合約日期 / 交車日期 / 成交價（萬） / 佣金（萬） */}
         <Grid size={{ xs: 12, md: 3 }}>
           <Controller
-            name="contractDate"
+            name="newContractDate"
             control={control}
             render={({ field }) => (
               <TextField
@@ -100,7 +100,7 @@ export default function NewOwnerTab({
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <Controller
-            name="dealPriceWan"
+            name="newDealPriceWan"
             control={control}
             render={({ field }) => (
               <TextField
@@ -114,7 +114,7 @@ export default function NewOwnerTab({
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <Controller
-            name="commissionWan"
+            name="newCommissionWan"
             control={control}
             render={({ field }) => (
               <TextField

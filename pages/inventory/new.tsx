@@ -86,9 +86,10 @@ const originalOwnerSchema = z.object({
   origOwnerIdNo: z.string().optional().or(z.literal("")), // 身分字號
   origOwnerBirth: z.string().optional().or(z.literal("")), // 生日 YYYY-MM-DD
 
-  contractDate: z.string().optional().or(z.literal("")), // 合約日
-  dealPriceWan: z.string().optional().or(z.literal("")), // 成交價（萬）
-  commissionWan: z.string().optional().or(z.literal("")), // 佣金（萬）
+  // originalOwnerSchema (replace the 3 fields)
+  origContractDate: z.string().optional().or(z.literal("")),
+  origDealPriceWan: z.string().optional().or(z.literal("")),
+  origCommissionWan: z.string().optional().or(z.literal("")),
 
   origOwnerRegZip: z.string().optional().or(z.literal("")), // 戶籍 郵遞區號
   origOwnerRegAddr: z.string().optional().or(z.literal("")), // 戶籍地址
@@ -107,15 +108,14 @@ const originalOwnerSchema = z.object({
   origOwnerNote: z.string().optional().or(z.literal("")), // 備註
 });
 
-// --- schema ---
 // --- New Owner schema ---
 const newOwnerSchema = z.object({
   newOwnerName: z.string().optional().or(z.literal("")),
   newOwnerPhone: z.string().optional().or(z.literal("")),
-  contractDate: z.string().optional().or(z.literal("")),
+  newContractDate: z.string().optional().or(z.literal("")),
+  newDealPriceWan: z.string().optional().or(z.literal("")),
+  newCommissionWan: z.string().optional().or(z.literal("")),
   handoverDate: z.string().optional().or(z.literal("")),
-  dealPriceWan: z.string().optional().or(z.literal("")),
-  commissionWan: z.string().optional().or(z.literal("")),
   newOwnerIdNo: z.string().optional().or(z.literal("")),
   newOwnerBirth: z.string().optional().or(z.literal("")),
   newOwnerRegAddr: z.string().optional().or(z.literal("")),
@@ -222,17 +222,18 @@ export default function InventoryNewPage() {
       procurementMethod: "",
       origOwnerNote: "",
       origOwnerPhone: "",
-      contractDate: "",
-      dealPriceWan: "",
-      commissionWan: "",
+      origContractDate: "",
+      origDealPriceWan: "",
+      origCommissionWan: "",
       origOwnerRegZip: "",
       origOwnerMailZip: "",
+
       newOwnerName: "",
       newOwnerPhone: "",
-      contractDate: "",
+      newContractDate: "",
+      newDealPriceWan: "",
+      newCommissionWan: "",
       handoverDate: "",
-      dealPriceWan: "",
-      commissionWan: "",
       newOwnerIdNo: "",
       newOwnerBirth: "",
       newOwnerRegAddr: "",
@@ -435,11 +436,13 @@ export default function InventoryNewPage() {
           baseValues.origOwnerPhone = ownerObj.get("phone") ?? "";
           baseValues.origOwnerIdNo = ownerObj.get("idNo") ?? "";
           baseValues.origOwnerBirth = toDateInput(ownerObj.get("birth"));
-          baseValues.contractDate = toDateInput(ownerObj.get("contractDate"));
-          baseValues.dealPriceWan = (
+          baseValues.origContractDate = toDateInput(
+            ownerObj.get("contractDate")
+          );
+          baseValues.origDealPriceWan = (
             ownerObj.get("dealPriceWan") ?? ""
           ).toString();
-          baseValues.commissionWan = (
+          baseValues.origCommissionWan = (
             ownerObj.get("commissionWan") ?? ""
           ).toString();
           baseValues.origOwnerRegZip = ownerObj.get("regZip") ?? "";
@@ -465,16 +468,16 @@ export default function InventoryNewPage() {
           setNewOwnerId(buyerObj.id ?? "");
           baseValues.newOwnerName = buyerObj.get("name") ?? "";
           baseValues.newOwnerPhone = buyerObj.get("phone") ?? "";
-          baseValues.contractDate =
-            baseValues.contractDate ||
-            toDateInput(buyerObj.get("contractDate"));
+          baseValues.newContractDate = toDateInput(
+            buyerObj.get("contractDate")
+          );
+          baseValues.newDealPriceWan = (
+            buyerObj.get("dealPriceWan") ?? ""
+          ).toString();
+          baseValues.newCommissionWan = (
+            buyerObj.get("commissionWan") ?? ""
+          ).toString();
           baseValues.handoverDate = toDateInput(buyerObj.get("handoverDate"));
-          baseValues.dealPriceWan =
-            baseValues.dealPriceWan ||
-            (buyerObj.get("dealPriceWan") ?? "").toString();
-          baseValues.commissionWan =
-            baseValues.commissionWan ||
-            (buyerObj.get("commissionWan") ?? "").toString();
           baseValues.newOwnerIdNo = buyerObj.get("idNo") ?? "";
           baseValues.newOwnerBirth = toDateInput(buyerObj.get("birth"));
           baseValues.newOwnerRegZip = buyerObj.get("regZip") ?? "";
@@ -595,6 +598,18 @@ export default function InventoryNewPage() {
       owner.set("registeredToName", v.registeredToName || null);
       owner.set("procurementMethod", v.procurementMethod || null);
       owner.set("note", v.origOwnerNote || null);
+      owner.set(
+        "contractDate",
+        v.origContractDate ? new Date(v.origContractDate) : null
+      );
+      owner.set(
+        "dealPriceWan",
+        v.origDealPriceWan ? Number(v.origDealPriceWan) : null
+      );
+      owner.set(
+        "commissionWan",
+        v.origCommissionWan ? Number(v.origCommissionWan) : null
+      );
       if (u) owner.set("user", u);
 
       await owner.save();
@@ -620,16 +635,19 @@ export default function InventoryNewPage() {
       buyer.set("phone", v.newOwnerPhone || null);
       buyer.set(
         "contractDate",
-        v.contractDate ? new Date(v.contractDate) : null
+        v.newContractDate ? new Date(v.newContractDate) : null
+      );
+      buyer.set(
+        "dealPriceWan",
+        v.newDealPriceWan ? Number(v.newDealPriceWan) : null
+      );
+      buyer.set(
+        "commissionWan",
+        v.newCommissionWan ? Number(v.newCommissionWan) : null
       );
       buyer.set(
         "handoverDate",
         v.handoverDate ? new Date(v.handoverDate) : null
-      );
-      buyer.set("dealPriceWan", v.dealPriceWan ? Number(v.dealPriceWan) : null);
-      buyer.set(
-        "commissionWan",
-        v.commissionWan ? Number(v.commissionWan) : null
       );
       buyer.set("idNo", v.newOwnerIdNo || null);
       buyer.set("birth", v.newOwnerBirth ? new Date(v.newOwnerBirth) : null);
