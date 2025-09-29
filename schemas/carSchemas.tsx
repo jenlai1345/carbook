@@ -99,9 +99,20 @@ export const receiptItemSchema = z.object({
   note: z.string().optional().default(""),
 });
 
+export const feeItemSchema = z.object({
+  date: z.string().optional().default(""), // 日期
+  item: z.string().optional().default(""), // 項目
+  vendor: z.string().optional().default(""), // 廠商
+  amount: z.union([z.number(), z.string()]).optional(), // 金額
+  cashOrCheck: z.enum(["現", "票"]), // 現/票
+  note: z.string().optional().default(""), // 說明
+  handler: z.string().optional().default(""), // 經手人
+});
+
 export const financeSchema = z.object({
   payments: z.array(paymentItemSchema).default([]),
   receipts: z.array(receiptItemSchema).default([]),
+  fees: z.array(feeItemSchema).default([]),
 });
 
 /* merged */

@@ -6,6 +6,7 @@ import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DATE_TF_PROPS } from "@/components/mui";
 import type { FormValues } from "@/schemas/carSchemas";
+import { useCarSnackbar } from "../CarSnackbarProvider";
 
 interface Props {
   tab: number;
@@ -20,6 +21,8 @@ export default function BasicTab({
   control: Control<any>;
   errors: FieldErrors<any>;
 }) {
+  const { showMessage } = useCarSnackbar();
+
   return (
     <Box sx={{ p: 2 }}>
       <Grid container spacing={2}>

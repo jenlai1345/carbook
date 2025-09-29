@@ -4,6 +4,7 @@ import { Controller, Control, FieldErrors } from "react-hook-form";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DATE_TF_PROPS } from "../mui";
+import { useCarSnackbar } from "../CarSnackbarProvider";
 
 export type OriginalOwnerForm = {
   // 基本
@@ -41,6 +42,7 @@ export default function OriginalOwnerTab({
   control: Control<any>;
   errors: FieldErrors<any>;
 }) {
+  const { showMessage } = useCarSnackbar();
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>

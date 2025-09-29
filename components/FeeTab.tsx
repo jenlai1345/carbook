@@ -1,3 +1,4 @@
+// components/inventory/FeeTab.tsx
 import * as React from "react";
 import {
   Box,
@@ -24,63 +25,47 @@ import {
   useFieldArray,
   useWatch,
 } from "react-hook-form";
-import { useCarSnackbar } from "../CarSnackbarProvider";
-import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
+import "dayjs/locale/zh-tw";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { DATE_TF_PROPS } from "./mui";
 
-export type PaymentItem = {
+export type FeeItem = {
   date: string; // 日期 (YYYY-MM-DD)
+  item: string; // 項目 (如：加油、停車、維修…)
+  vendor: string; // 廠商
   amount: number | ""; // 金額
   cashOrCheck: "現" | "票"; // 現/票
-  interestStartDate?: string; // 利息起算日
   note?: string; // 說明
+  handler?: string; // 經手人
 };
 
-const FIELD = "payments" as const;
+const FIELD = "fees" as const;
 
-export default function PaymentTab({
+export default function FeeTab({
   control,
-  errors, // for signature consistency; not used in this table
+  errors, // 介面一致；此表未使用
 }: {
   control: Control<any>;
   errors: FieldErrors<any>;
 }) {
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: FIELD,
   });
 
-  const rows = (useWatch({ control, name: FIELD }) || []) as PaymentItem[];
+  const rows = (useWatch({ control, name: FIELD }) || []) as FeeItem[];
   const [checked, setChecked] = React.useState<Record<number, boolean>>({});
-  const { showMessage } = useCarSnackbar();
-
-  // 自動帶入規則 + Snackbar 提示
-  React.useEffect(() => {
-    rows.forEach((r, i) => {
-      const shouldAutofill =
-        r?.cashOrCheck === "票" &&
-        !!r?.date &&
-        (!r?.interestStartDate || r.interestStartDate === "");
-
-      if (shouldAutofill) {
-        update(i, { ...r, interestStartDate: r.date });
-        // 2 秒預設，可依需要改第三參數
-        showMessage(
-          `第 ${i + 1} 筆：已將「利息起算日」自動設為「日期」`,
-          "info",
-          2000
-        );
-      }
-    });
-  }, [rows, update, showMessage]);
 
   const addRow = () =>
     append({
       date: "",
+      item: "",
+      vendor: "",
       amount: "",
       cashOrCheck: "現",
-      interestStartDate: "",
       note: "",
+      handler: "",
     });
 
   const deleteChecked = () => {
@@ -92,7 +77,7 @@ export default function PaymentTab({
     setChecked({});
   };
 
-  const totalPaid = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const totalFee = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   return (
     <Box>
@@ -117,11 +102,13 @@ export default function PaymentTab({
                   }}
                 />
               </TableCell>
-              <TableCell width={140}>日期</TableCell>
-              <TableCell width={160}>金額</TableCell>
+              <TableCell width={120}>日期</TableCell>
+              <TableCell width={140}>項目</TableCell>
+              <TableCell width={120}>廠商</TableCell>
+              <TableCell width={120}>金額</TableCell>
               <TableCell width={120}>現/票</TableCell>
-              <TableCell width={160}>利息起算日</TableCell>
               <TableCell>說明</TableCell>
+              <TableCell width={140}>經手人</TableCell>
               <TableCell width={56} align="center">
                 刪除
               </TableCell>
@@ -160,6 +147,28 @@ export default function PaymentTab({
                           },
                         }}
                       />
+                    )}
+                  />
+                </TableCell>
+
+                {/* 項目 */}
+                <TableCell>
+                  <Controller
+                    control={control}
+                    name={`${FIELD}.${index}.item`}
+                    render={({ field }) => (
+                      <TextField {...field} size="small" fullWidth />
+                    )}
+                  />
+                </TableCell>
+
+                {/* 廠商 */}
+                <TableCell>
+                  <Controller
+                    control={control}
+                    name={`${FIELD}.${index}.vendor`}
+                    render={({ field }) => (
+                      <TextField {...field} size="small" fullWidth />
                     )}
                   />
                 </TableCell>
@@ -206,32 +215,22 @@ export default function PaymentTab({
                   />
                 </TableCell>
 
-                {/* 利息起算日 */}
-                <TableCell>
-                  <Controller
-                    name={`${FIELD}.${index}.interestStartDate`}
-                    control={control}
-                    render={({ field }) => (
-                      <DatePicker
-                        value={field.value ? dayjs(field.value) : null}
-                        onChange={(v) =>
-                          field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                        }
-                        slotProps={{
-                          textField: {
-                            size: "small",
-                          },
-                        }}
-                      />
-                    )}
-                  />
-                </TableCell>
-
                 {/* 說明 */}
                 <TableCell>
                   <Controller
                     control={control}
                     name={`${FIELD}.${index}.note`}
+                    render={({ field }) => (
+                      <TextField {...field} size="small" fullWidth />
+                    )}
+                  />
+                </TableCell>
+
+                {/* 經手人 */}
+                <TableCell>
+                  <Controller
+                    control={control}
+                    name={`${FIELD}.${index}.handler`}
                     render={({ field }) => (
                       <TextField {...field} size="small" fullWidth />
                     )}
@@ -248,8 +247,8 @@ export default function PaymentTab({
 
             {fields.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                  尚無資料，點「新增」建立一筆付款。
+                <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                  尚無資料，點「新增」建立一筆費用。
                 </TableCell>
               </TableRow>
             )}
@@ -286,8 +285,7 @@ export default function PaymentTab({
         </Stack>
 
         <Typography variant="body2">
-          已付：{totalPaid.toLocaleString()} 元　核至今日利息：0
-          元　結算日：／／
+          合計：{totalFee.toLocaleString()} 元
         </Typography>
       </Stack>
     </Box>

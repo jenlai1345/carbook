@@ -1,8 +1,9 @@
-const BASIC_TAB_INDEX = 0;
-const DOCUMENT_INDEX = 1;
-const INBOUND_INDEX = 2;
-const ORIGINAL_OWNER_TAB_INDEX = 3;
-const INSURANCE_INDEX = 4;
-const NEW_OWNER_TAB_INDEX = 5;
-const PAYMENT_TAB_INDEX = 6;
-const RECEIPT_TAB_INDEX = 7;
+export const BASIC_TAB_INDEX = 0;
+export const DOCUMENT_INDEX = 1;
+export const INBOUND_INDEX = 2;
+export const ORIGINAL_OWNER_TAB_INDEX = 3;
+export const INSURANCE_INDEX = 4;
+export const NEW_OWNER_TAB_INDEX = 5;
+export const PAYMENT_TAB_INDEX = 6;
+export const RECEIPT_TAB_INDEX = 7;
+export const FEE_TAB_INDEX = 8;

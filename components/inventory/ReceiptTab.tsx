@@ -24,12 +24,15 @@ import {
   useFieldArray,
   useWatch,
 } from "react-hook-form";
+import { useCarSnackbar } from "../CarSnackbarProvider";
+import { DatePicker } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
 
 export type ReceiptItem = {
   date: string; // 日期 (YYYY-MM-DD)
   amount: number | ""; // 金額
   cashOrCheck: "現" | "票"; // 現/票
-  exchangeDate?: string; // 票換日期
+  exchangeDate?: string; // 票據日期
   note?: string; // 說明
 };
 
@@ -42,13 +45,33 @@ export default function ReceiptTab({
   control: Control<any>;
   errors: FieldErrors<any>;
 }) {
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control,
     name: FIELD,
   });
 
   const rows = (useWatch({ control, name: FIELD }) || []) as ReceiptItem[];
   const [checked, setChecked] = React.useState<Record<number, boolean>>({});
+  const { showMessage } = useCarSnackbar();
+
+  // ★ 自動帶入規則：當為「票」且有 date，且 exchangeDate 尚未填，則設定為 date，並顯示 Snackbar
+  React.useEffect(() => {
+    rows.forEach((r, i) => {
+      const shouldAutofill =
+        r?.cashOrCheck === "票" &&
+        !!r?.date &&
+        (!r?.exchangeDate || r.exchangeDate === "");
+
+      if (shouldAutofill) {
+        update(i, { ...r, exchangeDate: r.date });
+        showMessage(
+          `第 ${i + 1} 筆：已將「票據日期」自動設為「日期」`,
+          "info",
+          2000
+        );
+      }
+    });
+  }, [rows, update, showMessage]);
 
   const addRow = () =>
     append({
@@ -94,11 +117,9 @@ export default function ReceiptTab({
                 />
               </TableCell>
               <TableCell width={140}>日期</TableCell>
-              <TableCell width={140} align="right">
-                金額
-              </TableCell>
-              <TableCell width={90}>現/票</TableCell>
-              <TableCell width={160}>票換日期</TableCell>
+              <TableCell width={160}>金額</TableCell>
+              <TableCell width={120}>現/票</TableCell>
+              <TableCell width={160}>票據日期</TableCell>
               <TableCell>說明</TableCell>
               <TableCell width={56} align="center">
                 刪除
@@ -124,15 +145,19 @@ export default function ReceiptTab({
                 {/* 日期 */}
                 <TableCell>
                   <Controller
-                    control={control}
                     name={`${FIELD}.${index}.date`}
+                    control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
-                        type="date"
-                        fullWidth
-                        InputLabelProps={{ shrink: true }}
+                      <DatePicker
+                        value={field.value ? dayjs(field.value) : null}
+                        onChange={(v) =>
+                          field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                        }
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                          },
+                        }}
                       />
                     )}
                   />
@@ -180,18 +205,22 @@ export default function ReceiptTab({
                   />
                 </TableCell>
 
-                {/* 票換日期 */}
+                {/* 票據日期 */}
                 <TableCell>
                   <Controller
-                    control={control}
                     name={`${FIELD}.${index}.exchangeDate`}
+                    control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
-                        type="date"
-                        fullWidth
-                        InputLabelProps={{ shrink: true }}
+                      <DatePicker
+                        value={field.value ? dayjs(field.value) : null}
+                        onChange={(v) =>
+                          field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                        }
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                          },
+                        }}
                       />
                     )}
                   />

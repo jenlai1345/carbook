@@ -38,9 +38,30 @@ import TabPanel from "@/components/TabPanel";
 import { FormValues, formSchema } from "@/schemas/carSchemas";
 import BasicTab from "@/components/inventory/BasicTab";
 import { DATE_TF_PROPS, SaveButton } from "@/components/mui";
+import {
+  BASIC_TAB_INDEX,
+  ORIGINAL_OWNER_TAB_INDEX,
+  NEW_OWNER_TAB_INDEX,
+  PAYMENT_TAB_INDEX,
+  RECEIPT_TAB_INDEX,
+  FEE_TAB_INDEX,
+} from "@/utils/constants";
+import {
+  CarSnackbarProvider,
+  useCarSnackbar,
+} from "@/components/CarSnackbarProvider";
+import FeeTab from "@/components/FeeTab";
 
-/* ==================== Page ==================== */
 export default function InventoryNewPage() {
+  return (
+    <CarSnackbarProvider>
+      <InventoryNewContent />
+    </CarSnackbarProvider>
+  );
+}
+/* ==================== Page ==================== */
+function InventoryNewContent() {
+  const { showMessage } = useCarSnackbar();
   const router = useRouter();
   const { carId } = router.query as { carId?: string };
   const [tab, setTab] = React.useState(0);
@@ -125,9 +146,10 @@ export default function InventoryNewPage() {
       salesMode: "",
       preferredShop: "",
       newOwnerNote: "",
-      /* NEW: arrays */
+
       payments: [],
       receipts: [],
+      fees: [],
     },
   });
 
@@ -300,6 +322,8 @@ export default function InventoryNewPage() {
 
           payments: [],
           receipts: [],
+
+          fees: [],
         };
 
         // original owner prefill
@@ -389,6 +413,17 @@ export default function InventoryNewPage() {
           cashOrCheck: r?.cashOrCheck === "票" ? "票" : "現",
           exchangeDate: toDateStr(r?.exchangeDate),
           note: r?.note ?? "",
+        }));
+
+        const feesRaw = (o.get("fees") as any[]) || [];
+        baseValues.fees = feesRaw.map((f) => ({
+          date: toDateStr(f?.date),
+          item: f?.item ?? "",
+          vendor: f?.vendor ?? "",
+          amount: f?.amount ?? "",
+          cashOrCheck: f?.cashOrCheck === "票" ? "票" : "現",
+          note: f?.note ?? "",
+          handler: f?.handler ?? "",
         }));
 
         reset(baseValues);
@@ -510,7 +545,7 @@ export default function InventoryNewPage() {
       await car.save();
 
       if (!origOwnerId) setOrigOwnerId(owner.id);
-      alert(origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立");
+      showMessage(origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立");
       router.push("/dashboard");
       return;
     } else if (tab === NEW_OWNER_TAB_INDEX) {
@@ -562,31 +597,55 @@ export default function InventoryNewPage() {
       await car.save();
 
       if (!newOwnerId) setNewOwnerId(buyer.id);
-      alert(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
+      showMessage(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
       router.push("/dashboard");
+      return;
+    } else if (tab === PAYMENT_TAB_INDEX) {
+      const payments = (v.payments || []).map((p) => ({
+        date: p.date || null,
+        amount: p.amount === "" || p.amount == null ? 0 : Number(p.amount),
+        cashOrCheck: p.cashOrCheck,
+        interestStartDate: p.interestStartDate || null,
+        note: p.note || null,
+      }));
+      car.set("payments", payments);
+
+      await car.save();
+      showMessage("✅ 已更新付款資料");
+      return;
+    } else if (tab === RECEIPT_TAB_INDEX) {
+      const receipts = (v.receipts || []).map((r) => ({
+        date: r.date || null,
+        amount: r.amount === "" || r.amount == null ? 0 : Number(r.amount),
+        cashOrCheck: r.cashOrCheck,
+        exchangeDate: r.exchangeDate || null,
+        note: r.note || null,
+      }));
+
+      car.set("receipts", receipts);
+
+      await car.save();
+      showMessage("✅ 已更新收款資料");
+      return;
+    } else if (tab === FEE_TAB_INDEX) {
+      // Map FeeTab rows to a compact, Parse-friendly shape
+      const fees = (v.fees || []).map((f) => ({
+        date: f.date || null, // keep as string or null (same as payments/receipts)
+        item: f.item || null,
+        vendor: f.vendor || null,
+        amount: f.amount === "" || f.amount == null ? 0 : Number(f.amount),
+        cashOrCheck: f.cashOrCheck, // "現" | "票"
+        note: f.note || null,
+        handler: f.handler || null,
+      }));
+
+      car.set("fees", fees);
+
+      await car.save();
+      showMessage("✅ 已更新費用資料");
       return;
     }
 
-    /* NEW: save payments / receipts with main car save */
-    const payments = (v.payments || []).map((p) => ({
-      date: p.date || null,
-      amount: p.amount === "" || p.amount == null ? 0 : Number(p.amount),
-      cashOrCheck: p.cashOrCheck,
-      interestStartDate: p.interestStartDate || null,
-      note: p.note || null,
-    }));
-    const receipts = (v.receipts || []).map((r) => ({
-      date: r.date || null,
-      amount: r.amount === "" || r.amount == null ? 0 : Number(r.amount),
-      cashOrCheck: r.cashOrCheck,
-      exchangeDate: r.exchangeDate || null,
-      note: r.note || null,
-    }));
-    car.set("payments", payments);
-    car.set("receipts", receipts);
-
-    await car.save();
-    alert(carId ? "✅ 已更新車籍資料" : "✅ 已新建立車籍資料");
     router.push("/dashboard");
   };
 
@@ -860,7 +919,7 @@ export default function InventoryNewPage() {
             </TabPanel>
 
             <TabPanel value={tab} index={8}>
-              <div />
+              <FeeTab control={control} errors={errors} />
             </TabPanel>
 
             {/* Sticky footer Save */}
