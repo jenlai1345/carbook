@@ -1,4 +1,3 @@
-// components/inventory/ReceiptTab.tsx
 import * as React from "react";
 import {
   Box,
@@ -18,7 +17,13 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { Controller, useFieldArray, useWatch, Control } from "react-hook-form";
+import {
+  Control,
+  FieldErrors,
+  Controller,
+  useFieldArray,
+  useWatch,
+} from "react-hook-form";
 
 export type ReceiptItem = {
   date: string; // 日期 (YYYY-MM-DD)
@@ -28,24 +33,21 @@ export type ReceiptItem = {
   note?: string; // 說明
 };
 
-type Props<T extends Record<string, any>> = {
-  control: Control<T>;
-  name: keyof T & string; // e.g. "receipts"
-};
+const FIELD = "receipts" as const;
 
-export default function ReceiptTab<T extends Record<string, any>>({
+export default function ReceiptTab({
   control,
-  name,
-}: Props<T>) {
+  errors, // for signature consistency; not used here
+}: {
+  control: Control<any>;
+  errors: FieldErrors<any>;
+}) {
   const { fields, append, remove } = useFieldArray({
     control,
-    name: name as any,
+    name: FIELD,
   });
 
-  // current rows (no need for form.watch)
-  const rows = (useWatch({ control, name: name as any }) ||
-    []) as ReceiptItem[];
-
+  const rows = (useWatch({ control, name: FIELD }) || []) as ReceiptItem[];
   const [checked, setChecked] = React.useState<Record<number, boolean>>({});
 
   const addRow = () =>
@@ -55,7 +57,7 @@ export default function ReceiptTab<T extends Record<string, any>>({
       cashOrCheck: "現",
       exchangeDate: "",
       note: "",
-    } as any);
+    });
 
   const deleteChecked = () => {
     Object.entries(checked)
@@ -123,7 +125,7 @@ export default function ReceiptTab<T extends Record<string, any>>({
                 <TableCell>
                   <Controller
                     control={control}
-                    name={`${name}.${index}.date` as any}
+                    name={`${FIELD}.${index}.date`}
                     render={({ field }) => (
                       <TextField
                         {...field}
@@ -140,7 +142,7 @@ export default function ReceiptTab<T extends Record<string, any>>({
                 <TableCell align="right">
                   <Controller
                     control={control}
-                    name={`${name}.${index}.amount` as any}
+                    name={`${FIELD}.${index}.amount`}
                     render={({ field }) => (
                       <TextField
                         {...field}
@@ -162,7 +164,7 @@ export default function ReceiptTab<T extends Record<string, any>>({
                 <TableCell>
                   <Controller
                     control={control}
-                    name={`${name}.${index}.cashOrCheck` as any}
+                    name={`${FIELD}.${index}.cashOrCheck`}
                     render={({ field }) => (
                       <TextField
                         {...field}
@@ -182,7 +184,7 @@ export default function ReceiptTab<T extends Record<string, any>>({
                 <TableCell>
                   <Controller
                     control={control}
-                    name={`${name}.${index}.exchangeDate` as any}
+                    name={`${FIELD}.${index}.exchangeDate`}
                     render={({ field }) => (
                       <TextField
                         {...field}
@@ -199,14 +201,13 @@ export default function ReceiptTab<T extends Record<string, any>>({
                 <TableCell>
                   <Controller
                     control={control}
-                    name={`${name}.${index}.note` as any}
+                    name={`${FIELD}.${index}.note`}
                     render={({ field }) => (
                       <TextField {...field} size="small" fullWidth />
                     )}
                   />
                 </TableCell>
 
-                {/* 刪除單列 */}
                 <TableCell align="center">
                   <IconButton onClick={() => remove(index)} size="small">
                     <DeleteIcon fontSize="small" />

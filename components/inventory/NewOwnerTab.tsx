@@ -2,9 +2,9 @@
 import * as React from "react";
 import { Box, TextField, Typography, Grid } from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
-import { DATE_TF_PROPS } from "@/pages/inventory/new";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
+import { DATE_TF_PROPS } from "../mui";
 
 export type NewOwnerForm = {
   newOwnerName: string; // 新車主名

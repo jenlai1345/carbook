@@ -17,33 +17,37 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { Controller, useFieldArray, useWatch, Control } from "react-hook-form";
+import {
+  Control,
+  FieldErrors,
+  Controller,
+  useFieldArray,
+  useWatch,
+} from "react-hook-form";
 
-export type ReceiptItem = {
-  date: string;
-  amount: number | "";
-  cashOrCheck: "現" | "票";
-  exchangeDate?: string;
-  note?: string;
+export type PaymentItem = {
+  date: string; // 日期 (YYYY-MM-DD)
+  amount: number | ""; // 金額
+  cashOrCheck: "現" | "票"; // 現/票
+  interestStartDate?: string; // 利息起算日
+  note?: string; // 說明
 };
 
-type Props<T extends Record<string, any>> = {
-  control: Control<T>;
-  name: keyof T & string; // "receipts"
-};
+const FIELD = "payments" as const;
 
-export default function ReceiptTab<T extends Record<string, any>>({
+export default function PaymentTab({
   control,
-  name,
-}: Props<T>) {
+  errors, // for signature consistency; not used in this table
+}: {
+  control: Control<any>;
+  errors: FieldErrors<any>;
+}) {
   const { fields, append, remove } = useFieldArray({
     control,
-    name: name as any,
+    name: FIELD,
   });
 
-  const rows = (useWatch({ control, name: name as any }) ||
-    []) as ReceiptItem[];
-
+  const rows = (useWatch({ control, name: FIELD }) || []) as PaymentItem[];
   const [checked, setChecked] = React.useState<Record<number, boolean>>({});
 
   const addRow = () =>
@@ -51,9 +55,9 @@ export default function ReceiptTab<T extends Record<string, any>>({
       date: "",
       amount: "",
       cashOrCheck: "現",
-      exchangeDate: "",
+      interestStartDate: "",
       note: "",
-    } as any);
+    });
 
   const deleteChecked = () => {
     Object.entries(checked)
@@ -64,7 +68,7 @@ export default function ReceiptTab<T extends Record<string, any>>({
     setChecked({});
   };
 
-  const totalReceived = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const totalPaid = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   return (
     <Box>
@@ -94,7 +98,7 @@ export default function ReceiptTab<T extends Record<string, any>>({
                 金額
               </TableCell>
               <TableCell width={90}>現/票</TableCell>
-              <TableCell width={160}>票換日期</TableCell>
+              <TableCell width={160}>利息起算日</TableCell>
               <TableCell>說明</TableCell>
               <TableCell width={56} align="center">
                 刪除
@@ -117,10 +121,11 @@ export default function ReceiptTab<T extends Record<string, any>>({
                   />
                 </TableCell>
 
+                {/* 日期 */}
                 <TableCell>
                   <Controller
                     control={control}
-                    name={`${name}.${index}.date` as any}
+                    name={`${FIELD}.${index}.date`}
                     render={({ field }) => (
                       <TextField
                         {...field}
@@ -133,10 +138,11 @@ export default function ReceiptTab<T extends Record<string, any>>({
                   />
                 </TableCell>
 
+                {/* 金額 */}
                 <TableCell align="right">
                   <Controller
                     control={control}
-                    name={`${name}.${index}.amount` as any}
+                    name={`${FIELD}.${index}.amount`}
                     render={({ field }) => (
                       <TextField
                         {...field}
@@ -154,12 +160,19 @@ export default function ReceiptTab<T extends Record<string, any>>({
                   />
                 </TableCell>
 
+                {/* 現/票 */}
                 <TableCell>
                   <Controller
                     control={control}
-                    name={`${name}.${index}.cashOrCheck` as any}
+                    name={`${FIELD}.${index}.cashOrCheck`}
                     render={({ field }) => (
-                      <TextField {...field} select size="small" fullWidth>
+                      <TextField
+                        {...field}
+                        select
+                        size="small"
+                        fullWidth
+                        SelectProps={{ native: true }}
+                      >
                         <option value="現">現</option>
                         <option value="票">票</option>
                       </TextField>
@@ -167,10 +180,11 @@ export default function ReceiptTab<T extends Record<string, any>>({
                   />
                 </TableCell>
 
+                {/* 利息起算日 */}
                 <TableCell>
                   <Controller
                     control={control}
-                    name={`${name}.${index}.exchangeDate` as any}
+                    name={`${FIELD}.${index}.interestStartDate`}
                     render={({ field }) => (
                       <TextField
                         {...field}
@@ -183,10 +197,11 @@ export default function ReceiptTab<T extends Record<string, any>>({
                   />
                 </TableCell>
 
+                {/* 說明 */}
                 <TableCell>
                   <Controller
                     control={control}
-                    name={`${name}.${index}.note` as any}
+                    name={`${FIELD}.${index}.note`}
                     render={({ field }) => (
                       <TextField {...field} size="small" fullWidth />
                     )}
@@ -241,7 +256,8 @@ export default function ReceiptTab<T extends Record<string, any>>({
         </Stack>
 
         <Typography variant="body2">
-          已收：{totalReceived.toLocaleString()} 元　售價－底價：0.00 萬
+          已付：{totalPaid.toLocaleString()} 元　核至今日利息：0
+          元　結算日：／／
         </Typography>
       </Stack>
     </Box>

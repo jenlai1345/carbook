@@ -167,3 +167,13 @@ export async function fetchCars(): Promise<Car[]> {
 
   return mapped;
 }
+
+export function a11yProps(i: number) {
+  return { id: `inv-tab-${i}`, "aria-controls": `inv-tabpanel-${i}` };
+}
+
+export const toDateInput = (d?: Date | null): string =>
+  d instanceof Date ? d.toISOString().slice(0, 10) : "";
+
+export const toDateStr = (x: any): string =>
+  x instanceof Date ? toDateInput(x) : typeof x === "string" ? x : "";

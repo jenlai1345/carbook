@@ -8,23 +8,21 @@ import {
   Tabs,
   Tab,
   TextField,
-  Button,
   Autocomplete,
-  Divider,
   Stack,
   CircularProgress,
 } from "@mui/material";
 import { useRouter } from "next/router";
 import { useForm, Controller, useWatch } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Parse from "../../lib/parseClient";
-import { styled } from "@mui/material/styles";
-import Typography from "@mui/material/Typography";
 import CarToolbar from "@/components/CarToolbar";
 import {
+  a11yProps,
   ensureBrandByName,
   ensureSeriesByName,
+  toDateInput,
+  toDateStr,
   useDebounce,
 } from "@/utils/helpers";
 import OriginalOwnerTab from "@/components/inventory/OriginalOwnerTab";
@@ -36,172 +34,10 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { zhTW as pickersZhTW } from "@mui/x-date-pickers/locales";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-tw";
-
-const ORIGINAL_OWNER_TAB_INDEX = 3;
-const NEW_OWNER_TAB_INDEX = 5;
-const PAYMENT_TAB_INDEX = 6;
-const RECEIPT_TAB_INDEX = 7;
-
-/* -------------------- styles -------------------- */
-const SaveButton = styled(Button)(({ theme }) => ({
-  display: "block",
-  marginLeft: "auto",
-  marginRight: "auto",
-  width: "100%",
-  [theme.breakpoints.up("sm")]: { width: "50%" },
-  textTransform: "none",
-  fontWeight: 700,
-  fontSize: 20,
-  borderRadius: 10,
-  "&:hover": { boxShadow: theme.shadows[4], transform: "translateY(-1px)" },
-}));
-
-export const DATE_TF_PROPS = {
-  fullWidth: true,
-  size: "medium" as const, // same as other TextFields
-  variant: "outlined" as const,
-  sx: {
-    // make it exactly the same height as your other inputs
-    "& .MuiOutlinedInput-root": { height: 56 }, // or whatever your TF height is
-    "& .MuiOutlinedInput-input": { py: 0 }, // vertically center text
-  },
-};
-
-/* -------------------- schema -------------------- */
-const headerSchema = z.object({
-  plateNo: z.string().min(1, "必填"),
-  prevPlateNo: z.string().optional().or(z.literal("")),
-  deliverDate: z.string().optional().or(z.literal("")),
-  brandId: z.string().optional().or(z.literal("")),
-  brandName: z.string().min(1, "必填"),
-  seriesId: z.string().optional().or(z.literal("")),
-  seriesName: z.string().optional().or(z.literal("")),
-  style: z.string().optional().or(z.literal("")),
-  buyPriceWan: z.string().optional().or(z.literal("")),
-  sellPriceWan: z.string().optional().or(z.literal("")),
-});
-
-const basicSchema = z.object({
-  factoryYM: z.string().optional().or(z.literal("")),
-  plateYM: z.string().optional().or(z.literal("")),
-  model: z.string().optional().or(z.literal("")),
-  displacementCc: z.string().optional().or(z.literal("")),
-  transmission: z.enum(["A", "M", ""]).optional().or(z.literal("")),
-  color: z.string().optional().or(z.literal("")),
-  engineNo: z.string().optional().or(z.literal("")),
-  vin: z.string().optional().or(z.literal("")),
-  dealer: z.string().optional().or(z.literal("")),
-  equipment: z.string().optional().or(z.literal("")),
-  remark: z.string().optional().or(z.literal("")),
-  condition: z.string().optional().or(z.literal("")),
-  inboundDate: z.string().optional().or(z.literal("")),
-  promisedDate: z.string().optional().or(z.literal("")),
-  returnDate: z.string().optional().or(z.literal("")),
-  disposition: z.string().optional().or(z.literal("")),
-});
-
-const originalOwnerSchema = z.object({
-  origOwnerName: z.string().optional().or(z.literal("")),
-  origOwnerPhone: z.string().optional().or(z.literal("")),
-  origOwnerIdNo: z.string().optional().or(z.literal("")),
-  origOwnerBirth: z.string().optional().or(z.literal("")),
-  origContractDate: z.string().optional().or(z.literal("")),
-  origDealPriceWan: z.string().optional().or(z.literal("")),
-  origCommissionWan: z.string().optional().or(z.literal("")),
-  origOwnerRegZip: z.string().optional().or(z.literal("")),
-  origOwnerRegAddr: z.string().optional().or(z.literal("")),
-  origOwnerMailZip: z.string().optional().or(z.literal("")),
-  origOwnerMailAddr: z.string().optional().or(z.literal("")),
-  consignorName: z.string().optional().or(z.literal("")),
-  consignorPhone: z.string().optional().or(z.literal("")),
-  referrerName: z.string().optional().or(z.literal("")),
-  referrerPhone: z.string().optional().or(z.literal("")),
-  purchasedTransferred: z.string().optional().or(z.literal("")),
-  registeredToName: z.string().optional().or(z.literal("")),
-  procurementMethod: z.string().optional().or(z.literal("")),
-  origOwnerNote: z.string().optional().or(z.literal("")),
-});
-
-const newOwnerSchema = z.object({
-  newOwnerName: z.string().optional().or(z.literal("")),
-  newOwnerPhone: z.string().optional().or(z.literal("")),
-  newContractDate: z.string().optional().or(z.literal("")),
-  newDealPriceWan: z.string().optional().or(z.literal("")),
-  newCommissionWan: z.string().optional().or(z.literal("")),
-  handoverDate: z.string().optional().or(z.literal("")),
-  newOwnerIdNo: z.string().optional().or(z.literal("")),
-  newOwnerBirth: z.string().optional().or(z.literal("")),
-  newOwnerRegAddr: z.string().optional().or(z.literal("")),
-  newOwnerRegZip: z.string().optional().or(z.literal("")),
-  newOwnerMailAddr: z.string().optional().or(z.literal("")),
-  newOwnerMailZip: z.string().optional().or(z.literal("")),
-  buyerAgentName: z.string().optional().or(z.literal("")),
-  buyerAgentPhone: z.string().optional().or(z.literal("")),
-  referrerName2: z.string().optional().or(z.literal("")),
-  referrerPhone2: z.string().optional().or(z.literal("")),
-  salesmanName: z.string().optional().or(z.literal("")),
-  salesCommissionPct: z.string().optional().or(z.literal("")),
-  salesMode: z.string().optional().or(z.literal("")),
-  preferredShop: z.string().optional().or(z.literal("")),
-  newOwnerNote: z.string().optional().or(z.literal("")),
-});
-
-/* NEW: row schemas */
-const paymentItemSchema = z.object({
-  date: z.string().optional().default(""),
-  amount: z.union([z.number(), z.string()]).optional(),
-  cashOrCheck: z.enum(["現", "票"]),
-  interestStartDate: z.string().optional().default(""),
-  note: z.string().optional().default(""),
-});
-const receiptItemSchema = z.object({
-  date: z.string().optional().default(""),
-  amount: z.union([z.number(), z.string()]).optional(),
-  cashOrCheck: z.enum(["現", "票"]),
-  exchangeDate: z.string().optional().default(""),
-  note: z.string().optional().default(""),
-});
-
-/* NEW: arrays on the form */
-const financeSchema = z.object({
-  payments: z.array(paymentItemSchema).default([]),
-  receipts: z.array(receiptItemSchema).default([]),
-});
-
-/* merge */
-const formSchema = headerSchema
-  .and(basicSchema)
-  .and(originalOwnerSchema)
-  .and(newOwnerSchema)
-  /* NEW */ .and(financeSchema);
-
-type FormValues = z.infer<typeof formSchema>;
-
-/* -------------------- helpers -------------------- */
-function a11yProps(i: number) {
-  return { id: `inv-tab-${i}`, "aria-controls": `inv-tabpanel-${i}` };
-}
-function TabPanel({
-  children,
-  value,
-  index,
-}: {
-  children?: React.ReactNode;
-  value: number;
-  index: number;
-}) {
-  return (
-    <div hidden={value !== index}>
-      {value === index && <Box sx={{ py: 2 }}>{children}</Box>}
-    </div>
-  );
-}
-
-const toDateInput = (d?: Date | null): string =>
-  d instanceof Date ? d.toISOString().slice(0, 10) : "";
-/* NEW: tolerate string or Date when prefill */
-const toDateStr = (x: any): string =>
-  x instanceof Date ? toDateInput(x) : typeof x === "string" ? x : "";
+import TabPanel from "@/components/TabPanel";
+import { FormValues, formSchema } from "@/schemas/carSchemas";
+import BasicTab from "@/components/inventory/BasicTab";
+import { DATE_TF_PROPS, SaveButton } from "@/components/mui";
 
 /* ==================== Page ==================== */
 export default function InventoryNewPage() {
@@ -420,7 +256,6 @@ export default function InventoryNewPage() {
           returnDate: toDateInput(o.get("returnDate")),
           disposition: o.get("disposition") ?? "",
 
-          // original owner (defaults)
           origOwnerName: "",
           origOwnerPhone: "",
           origOwnerIdNo: "",
@@ -441,7 +276,6 @@ export default function InventoryNewPage() {
           procurementMethod: "",
           origOwnerNote: "",
 
-          // new owner (defaults)
           newOwnerName: "",
           newOwnerPhone: "",
           newContractDate: "",
@@ -464,7 +298,6 @@ export default function InventoryNewPage() {
           preferredShop: "",
           newOwnerNote: "",
 
-          /* NEW: arrays */
           payments: [],
           receipts: [],
         };
@@ -995,240 +828,8 @@ export default function InventoryNewPage() {
               <Tab label="費用" {...a11yProps(8)} />
             </Tabs>
 
-            {/* 基本 */}
             <TabPanel value={tab} index={0}>
-              <Box sx={{ p: 2 }}>
-                <Grid container spacing={2}>
-                  {/* 出廠（年/月） — 使用 DatePicker（年/月檢視），表單值為 "YYYY-MM" */}
-                  <Grid size={{ xs: 6, md: 4 }}>
-                    <Controller
-                      name="factoryYM"
-                      control={control}
-                      render={({ field }) => (
-                        <DatePicker
-                          label="出廠（年/月）"
-                          views={["year", "month"]}
-                          value={
-                            field.value ? dayjs(`${field.value}-01`) : null
-                          }
-                          onChange={(v) =>
-                            field.onChange(v ? v.format("YYYY-MM") : "")
-                          }
-                          slotProps={{ textField: DATE_TF_PROPS }}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  {/* 領牌（年/月） — 使用 DatePicker（年/月檢視），表單值為 "YYYY-MM" */}
-                  <Grid size={{ xs: 6, md: 4 }}>
-                    <Controller
-                      name="plateYM"
-                      control={control}
-                      render={({ field }) => (
-                        <DatePicker
-                          label="領牌（年/月）"
-                          views={["year", "month"]}
-                          value={
-                            field.value ? dayjs(`${field.value}-01`) : null
-                          }
-                          onChange={(v) =>
-                            field.onChange(v ? v.format("YYYY-MM") : "")
-                          }
-                          slotProps={{ textField: DATE_TF_PROPS }}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 6, md: 4 }}>
-                    <Controller
-                      name="model"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField {...field} label="Model" fullWidth />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 6, md: 4 }}>
-                    <Controller
-                      name="displacementCc"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          label="排氣量"
-                          inputProps={{ inputMode: "numeric" }}
-                          fullWidth
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 6, md: 4 }}>
-                    <Controller
-                      name="transmission"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          select
-                          SelectProps={{ native: true }}
-                          label="排檔（A/M）"
-                          fullWidth
-                        >
-                          <option value=""></option>
-                          <option value="A">A</option>
-                          <option value="M">M</option>
-                        </TextField>
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 6, md: 4 }}>
-                    <Controller
-                      name="color"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField {...field} label="顏色" fullWidth />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Controller
-                      name="engineNo"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField {...field} label="引擎號碼" fullWidth />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Controller
-                      name="vin"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField {...field} label="車身號碼" fullWidth />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 2 }}>
-                    <Controller
-                      name="dealer"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField {...field} label="代理商" fullWidth />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 10 }}>
-                    <Controller
-                      name="equipment"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          label="配備"
-                          multiline
-                          fullWidth
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Controller
-                      name="remark"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          label="備註"
-                          multiline
-                          fullWidth
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Controller
-                      name="condition"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField {...field} label="整備情形" fullWidth />
-                      )}
-                    />
-                  </Grid>
-
-                  {/* 以下三個改用 DatePicker（日曆中文會由 LocalizationProvider 控制） */}
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <Controller
-                      name="inboundDate"
-                      control={control}
-                      render={({ field }) => (
-                        <DatePicker
-                          label="進廠日（年/月/日）"
-                          value={field.value ? dayjs(field.value) : null}
-                          onChange={(v) =>
-                            field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                          }
-                          slotProps={{ textField: DATE_TF_PROPS }}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <Controller
-                      name="promisedDate"
-                      control={control}
-                      render={({ field }) => (
-                        <DatePicker
-                          label="預交日（年/月/日）"
-                          value={field.value ? dayjs(field.value) : null}
-                          onChange={(v) =>
-                            field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                          }
-                          slotProps={{ textField: DATE_TF_PROPS }}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <Controller
-                      name="returnDate"
-                      control={control}
-                      render={({ field }) => (
-                        <DatePicker
-                          label="回公司日（年/月/日）"
-                          value={field.value ? dayjs(field.value) : null}
-                          onChange={(v) =>
-                            field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                          }
-                          slotProps={{ textField: DATE_TF_PROPS }}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12 }}>
-                    <Controller
-                      name="disposition"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField {...field} label="處置" fullWidth />
-                      )}
-                    />
-                  </Grid>
-                </Grid>
-              </Box>
+              <BasicTab control={control} errors={errors} />
             </TabPanel>
 
             <TabPanel value={tab} index={1}>
@@ -1251,11 +852,11 @@ export default function InventoryNewPage() {
             </TabPanel>
 
             <TabPanel value={tab} index={6}>
-              <PaymentTab control={control} name="payments" />
+              <PaymentTab control={control} errors={errors} />
             </TabPanel>
 
             <TabPanel value={tab} index={7}>
-              <ReceiptTab control={control} name="receipts" />
+              <ReceiptTab control={control} errors={errors} />
             </TabPanel>
 
             <TabPanel value={tab} index={8}>

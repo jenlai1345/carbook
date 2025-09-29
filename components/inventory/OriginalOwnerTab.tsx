@@ -3,7 +3,7 @@ import { Box, TextField, Typography, Grid } from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { DATE_TF_PROPS } from "@/pages/inventory/new";
+import { DATE_TF_PROPS } from "../mui";
 
 export type OriginalOwnerForm = {
   // 基本
