@@ -40,17 +40,23 @@ import BasicTab from "@/components/inventory/BasicTab";
 import { DATE_TF_PROPS, SaveButton } from "@/components/mui";
 import {
   BASIC_TAB_INDEX,
+  DOCUMENT_TAB_INDEX,
+  INBOUND_TAB_INDEX,
   ORIGINAL_OWNER_TAB_INDEX,
   NEW_OWNER_TAB_INDEX,
   PAYMENT_TAB_INDEX,
   RECEIPT_TAB_INDEX,
   FEE_TAB_INDEX,
+  INSURANCE_TAB_INDEX,
 } from "@/utils/constants";
 import {
   CarSnackbarProvider,
   useCarSnackbar,
 } from "@/components/CarSnackbarProvider";
 import FeeTab from "@/components/FeeTab";
+import DocumentTab from "@/components/inventory/DocumentTab";
+import InBoundTab from "@/components/inventory/InboundTab";
+import InsuranceTab from "@/components/inventory/InsuranceTab";
 
 export default function InventoryNewPage() {
   return (
@@ -150,6 +156,54 @@ function InventoryNewContent() {
       payments: [],
       receipts: [],
       fees: [],
+
+      document: {
+        audioCode: "",
+        spareKey: "",
+        certOk: "", // "無" | "有" | "缺"
+        license: "", // "無" | "有"
+        application: "", // "無" | "有" | "缺(米)"
+        transferPaper: "", // "無" | "有"
+        payoffProof: "", // "無" | "有"
+        inspectDate: "", // "YYYY-MM-DD"
+        taxCert: "", // "無" | "有" | "影本"
+        factoryCert: "", // "無" | "有" | "缺(△)"
+        copyFlag: "", // "無" | "有"
+        plate: "", // "無" | "有" | "缺(Φ)"
+        taxStatus: "", // "已繳" | "缺"
+        remark: "",
+      },
+
+      inbound: {
+        orderNo: "",
+        keyNo: "",
+        purchaseMode: "",
+        purchaser: "",
+        listPriceWan: "",
+        note: "",
+        noteAmountWan: "",
+        purchaseBonusPct: "",
+        newCarPriceWan: "",
+        changeDate: "",
+        changeMethod: "",
+        originalMileageKm: "",
+        adjustedMileageKm: "", // was arrivalMileageKm
+      },
+
+      insurance: {
+        insuranceType: "",
+        expireDate: "",
+        insuranceCompany: "",
+        loanCompany: "",
+        contactName: "",
+        contactPhone: "",
+        amount: "",
+        installments: "",
+        baseAmount: "",
+        promissoryNote: "",
+        personalName: "",
+        collection: "",
+      },
     },
   });
 
@@ -249,7 +303,8 @@ function InventoryNewContent() {
           ]);
         }
 
-        const baseValues: FormValues = {
+        // ✅ Declare baseValues as Partial<FormValues> so you can add nested keys safely
+        const baseValues: Partial<FormValues> = {
           plateNo: o.get("plateNo") ?? "",
           prevPlateNo: o.get("prevPlateNo") ?? "",
           deliverDate: toDateInput(o.get("deliverDate")),
@@ -322,9 +377,85 @@ function InventoryNewContent() {
 
           payments: [],
           receipts: [],
-
           fees: [],
+
+          // ✅ Nest document under its own key (matches Zod & defaultValues)
+          document: {
+            audioCode: "",
+            spareKey: "",
+            certOk: "",
+            license: "",
+            application: "",
+            transferPaper: "",
+            payoffProof: "",
+            inspectDate: "",
+            taxCert: "",
+            factoryCert: "",
+            copyFlag: "",
+            plate: "",
+            taxStatus: "",
+            remark: "",
+          },
         };
+
+        // ✅ Prefill document if available
+        const doc = (o.get("document") as any) || {};
+        baseValues.document = {
+          audioCode: doc?.audioCode ?? "",
+          spareKey: doc?.spareKey ?? "",
+          certOk: doc?.certOk ?? "",
+          license: doc?.license ?? "",
+          application: doc?.application ?? "",
+          transferPaper: doc?.transferPaper ?? "",
+          payoffProof: doc?.payoffProof ?? "",
+          inspectDate: toDateStr(doc?.inspectDate),
+          taxCert: doc?.taxCert ?? "",
+          factoryCert: doc?.factoryCert ?? "",
+          copyFlag: doc?.copyFlag ?? "",
+          plate: doc?.plate ?? "",
+          taxStatus: doc?.taxStatus ?? "",
+          remark: doc?.remark ?? "",
+        };
+
+        const inbound = (o.get("inbound") as any) || {};
+        (baseValues as any).inbound = {
+          orderNo: inbound?.orderNo ?? "",
+          keyNo: inbound?.keyNo ?? inbound?.wheelNo ?? "", // support old field
+          purchaseMode: inbound?.purchaseMode ?? "",
+          purchaser: inbound?.purchaser ?? "",
+          listPriceWan: (inbound?.listPriceWan ?? "").toString(),
+          note: inbound?.note ?? "",
+          noteAmountWan: (inbound?.noteAmountWan ?? "").toString(),
+          purchaseBonusPct: (inbound?.purchaseBonusPct ?? "").toString(),
+          newCarPriceWan: (inbound?.newCarPriceWan ?? "").toString(),
+          changeDate: toDateStr(inbound?.changeDate),
+          changeMethod: inbound?.changeMethod ?? "",
+          originalMileageKm: (inbound?.originalMileageKm ?? "").toString(),
+          adjustedMileageKm: (
+            inbound?.adjustedMileageKm ??
+            inbound?.arrivalMileageKm ??
+            ""
+          ).toString(),
+        };
+
+        const ins = (o.get("insurance") as any) || {};
+        (baseValues as any).insurance = {
+          insuranceType: ins?.insuranceType ?? "",
+          expireDate: toDateStr(ins?.expireDate),
+          insuranceCompany: ins?.insuranceCompany ?? "",
+          loanCompany: ins?.loanCompany ?? "",
+          contactName: ins?.contactName ?? "",
+          contactPhone: ins?.contactPhone ?? "",
+          amount: (ins?.amount ?? "").toString(),
+          installments: (ins?.installments ?? "").toString(),
+          baseAmount: (ins?.baseAmount ?? "").toString(),
+          promissoryNote: ins?.promissoryNote ?? "",
+          personalName: ins?.personalName ?? "",
+          collection: ins?.collection ?? "",
+        };
+
+        // ✅ Finally reset form with typed defaults
+        reset(baseValues as FormValues);
 
         // original owner prefill
         if (ownerObj) {
@@ -547,6 +678,86 @@ function InventoryNewContent() {
       if (!origOwnerId) setOrigOwnerId(owner.id);
       showMessage(origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立");
       router.push("/dashboard");
+      return;
+    } else if (tab === DOCUMENT_TAB_INDEX) {
+      const d = v.document || {};
+
+      // Normalize empty strings -> null (optional but keeps DB clean)
+      const norm = (x: any) => (x === "" || x == null ? null : x);
+
+      const docOut = {
+        audioCode: norm(d.audioCode),
+        spareKey: norm(d.spareKey),
+        certOk: norm(d.certOk),
+        license: norm(d.license),
+        application: norm(d.application),
+        transferPaper: norm(d.transferPaper),
+        payoffProof: norm(d.payoffProof),
+        inspectDate: norm(d.inspectDate), // keep as 'YYYY-MM-DD' like other tabs
+        taxCert: norm(d.taxCert),
+        factoryCert: norm(d.factoryCert),
+        copyFlag: norm(d.copyFlag),
+        plate: norm(d.plate),
+        taxStatus: norm(d.taxStatus),
+        remark: norm(d.remark),
+      };
+
+      car.set("document", docOut);
+      await car.save();
+      showMessage("✅ 已更新證件資料");
+      return;
+    } else if (tab === INBOUND_TAB_INDEX) {
+      const d = v.inbound || {};
+      const n = (x: any) => (x === "" || x == null ? null : x);
+
+      const inboundOut = {
+        orderNo: n(d.orderNo),
+        keyNo: n(d.keyNo),
+        purchaseMode: n(d.purchaseMode),
+        purchaser: n(d.purchaser),
+        listPriceWan: d.listPriceWan ? Number(d.listPriceWan) : null,
+        note: n(d.note),
+        noteAmountWan: d.noteAmountWan ? Number(d.noteAmountWan) : null,
+        purchaseBonusPct: d.purchaseBonusPct
+          ? Number(d.purchaseBonusPct)
+          : null,
+        newCarPriceWan: d.newCarPriceWan ? Number(d.newCarPriceWan) : null,
+        changeDate: n(d.changeDate),
+        changeMethod: n(d.changeMethod),
+        originalMileageKm: d.originalMileageKm
+          ? Number(d.originalMileageKm)
+          : null,
+        adjustedMileageKm: d.adjustedMileageKm
+          ? Number(d.adjustedMileageKm)
+          : null,
+      };
+
+      car.set("inbound", inboundOut);
+      await car.save();
+      showMessage("✅ 已更新入車資料");
+      return;
+    } else if (tab === INSURANCE_TAB_INDEX) {
+      const d = v.insurance || {};
+      const n = (x: any) => (x === "" || x == null ? null : x);
+
+      const insuranceOut = {
+        insuranceType: n(d.insuranceType),
+        expireDate: n(d.expireDate), // keep as 'YYYY-MM-DD' string
+        insuranceCompany: n(d.insuranceCompany),
+        loanCompany: n(d.loanCompany),
+        contactName: n(d.contactName),
+        contactPhone: n(d.contactPhone),
+        amount: d.amount ? Number(d.amount) : null,
+        installments: d.installments ? Number(d.installments) : null,
+        baseAmount: d.baseAmount ? Number(d.baseAmount) : null,
+        promissoryNote: n(d.promissoryNote), // "無" | "有"
+        personalName: n(d.personalName),
+        collection: n(d.collection),
+      };
+
+      car.set("insurance", insuranceOut);
+      await car.save();
+      showMessage("✅ 已更新保險/貸款資料");
       return;
     } else if (tab === NEW_OWNER_TAB_INDEX) {
       const Owner = Parse.Object.extend("Owner");
@@ -892,10 +1103,10 @@ function InventoryNewContent() {
             </TabPanel>
 
             <TabPanel value={tab} index={1}>
-              <div />
+              <DocumentTab control={control} errors={errors} />
             </TabPanel>
             <TabPanel value={tab} index={2}>
-              <div />
+              <InBoundTab control={control} errors={errors} />
             </TabPanel>
 
             <TabPanel value={tab} index={3}>
@@ -903,7 +1114,7 @@ function InventoryNewContent() {
             </TabPanel>
 
             <TabPanel value={tab} index={4}>
-              <div />
+              <InsuranceTab control={control} errors={errors} />
             </TabPanel>
 
             <TabPanel value={tab} index={5}>

@@ -35,6 +35,81 @@ export const basicSchema = z.object({
   disposition: z.string().optional().or(z.literal("")),
 });
 
+/* document */
+export const documentDetailSchema = z.object({
+  audioCode: z.string().optional().or(z.literal("")),
+  spareKey: z.string().optional().or(z.literal("")),
+  certOk: z.enum(["無", "有", "缺"]).optional().or(z.literal("")).default(""),
+  license: z.enum(["無", "有"]).optional().or(z.literal("")).default(""),
+  application: z
+    .enum(["無", "有", "缺(米)"]) // ← screenshot uses 米
+    .optional()
+    .or(z.literal(""))
+    .default(""),
+  transferPaper: z.enum(["無", "有"]).optional().or(z.literal("")).default(""),
+  payoffProof: z.enum(["無", "有"]).optional().or(z.literal("")).default(""),
+  inspectDate: z.string().optional().or(z.literal("")), // YYYY-MM-DD
+  taxCert: z
+    .enum(["無", "有", "影本"])
+    .optional()
+    .or(z.literal(""))
+    .default(""),
+  factoryCert: z
+    .enum(["無", "有", "缺(△)"])
+    .optional()
+    .or(z.literal(""))
+    .default(""),
+  copyFlag: z.enum(["無", "有"]).optional().or(z.literal("")).default(""),
+  plate: z.enum(["無", "有", "缺(Φ)"]).optional().or(z.literal("")).default(""),
+  taxStatus: z.enum(["已繳", "缺"]).optional().or(z.literal("")).default(""),
+  remark: z.string().optional().or(z.literal("")),
+});
+
+export const documentSchema = z.object({
+  document: documentDetailSchema,
+});
+
+/* inbound (入車) */
+export const inboundSchema = z.object({
+  inbound: z.object({
+    orderNo: z.string().optional().or(z.literal("")),
+    keyNo: z.string().optional().or(z.literal("")), // 鑰號
+    purchaseMode: z.string().optional().or(z.literal("")),
+    purchaser: z.string().optional().or(z.literal("")),
+    listPriceWan: z.string().optional().or(z.literal("")),
+    note: z.string().optional().or(z.literal("")),
+    noteAmountWan: z.string().optional().or(z.literal("")),
+    purchaseBonusPct: z.string().optional().or(z.literal("")),
+    newCarPriceWan: z.string().optional().or(z.literal("")),
+    changeDate: z.string().optional().or(z.literal("")),
+    changeMethod: z.string().optional().or(z.literal("")),
+    originalMileageKm: z.string().optional().or(z.literal("")),
+    adjustedMileageKm: z.string().optional().or(z.literal("")), // 調後公里數
+  }),
+});
+
+/* insurance / loan */
+export const insuranceSchema = z.object({
+  insurance: z.object({
+    insuranceType: z.string().optional().or(z.literal("")),
+    expireDate: z.string().optional().or(z.literal("")),
+    insuranceCompany: z.string().optional().or(z.literal("")),
+    loanCompany: z.string().optional().or(z.literal("")),
+    contactName: z.string().optional().or(z.literal("")),
+    contactPhone: z.string().optional().or(z.literal("")),
+    amount: z.string().optional().or(z.literal("")),
+    installments: z.string().optional().or(z.literal("")),
+    baseAmount: z.string().optional().or(z.literal("")),
+    promissoryNote: z
+      .enum(["無", "有"])
+      .optional()
+      .or(z.literal(""))
+      .default(""),
+    personalName: z.string().optional().or(z.literal("")),
+    collection: z.string().optional().or(z.literal("")),
+  }),
+});
+
 /* owners */
 export const originalOwnerSchema = z.object({
   origOwnerName: z.string().optional().or(z.literal("")),
@@ -118,6 +193,9 @@ export const financeSchema = z.object({
 /* merged */
 export const formSchema = headerSchema
   .and(basicSchema)
+  .and(documentSchema)
+  .and(inboundSchema)
+  .and(insuranceSchema)
   .and(originalOwnerSchema)
   .and(newOwnerSchema)
   .and(financeSchema);
