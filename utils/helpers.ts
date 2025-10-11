@@ -30,45 +30,12 @@ export async function ensureBrandByName(name: string): Promise<string> {
   return saved.id;
 }
 
-export async function ensureSeriesByName(
-  name: string,
-  brandId: string
-): Promise<string> {
-  const Brand = Parse.Object.extend("Brand");
-  const brandPtr = Brand.createWithoutData(brandId);
-  const q = new Parse.Query("Series");
-  q.equalTo("name", name.trim());
-  q.equalTo("brand", brandPtr);
-  const exist = await q.first();
-  if (exist) return exist.id ?? "";
-  const Series = Parse.Object.extend("Series");
-  const s = new Series();
-  s.set("name", name.trim());
-  s.set("brand", brandPtr);
-  const saved = await s.save();
-  return saved.id;
-}
-
-/** Compute list/tab status from your schema fields */
-// export function computeStatus(car: Partial<Car>): CarStatus {
-//   const disp = (car.disposition ?? "").toString().toLowerCase();
-//   if (car.deliverDate) return "sold";
-//   if (
-//     ["transferred", "transfer", "調出", "外調", "移轉"].some((k) =>
-//       disp.includes(k)
-//     )
-//   ) {
-//     return "transferred";
-//   }
-//   return "active";
-// }
-
 /** Which text fields we search against for the keyword box */
 const SEARCHABLE_KEYS: (keyof Car)[] = [
   "plateNo",
   "prevPlateNo",
-  "brand",
-  "series",
+  "brand", // assuming your Car model stores brand name as string
+  "seriesCategory",
   "model",
   "style",
   "vin",
@@ -108,61 +75,73 @@ export function matchesKeyword(car: Car, kw: string) {
   return false;
 }
 
+/** Safely convert unknown date-like values to `YYYY-MM-DD` or "" */
+const toDateInput = (d?: Date | null): string =>
+  d instanceof Date ? d.toISOString().slice(0, 10) : "";
+
+const toDateFromUnknown = (x: unknown): string => {
+  if (x instanceof Date) return toDateInput(x);
+  if (typeof x === "string") return x; // assume already YYYY-MM-DD
+  return "";
+};
+
 /** Parse → Car[] mapper */
 export async function fetchCars(): Promise<Car[]> {
   // Assumes Parse is already initialized in your app (e.g., in _app.tsx or a Parse client module)
   const CarClass = Parse.Object.extend("Car");
   const q = new Parse.Query(CarClass);
-  q.equalTo("user", Parse.User.current()!);
+  const currentUser = Parse.User.current();
+  if (currentUser) q.equalTo("user", currentUser);
   q.limit(1000);
-  q.include(["brand", "series"]); // resolve pointer names
+  q.include(["brand"]); // resolve pointer names
 
   const results = await q.find();
 
-  const get = (o: Parse.Object, key: string) => o.get(key);
-  const toISOorNull = (d: unknown) =>
-    d instanceof Date
-      ? d.toISOString()
-      : (d as string | null | undefined) ?? null;
-
   const mapped: Car[] = results.map((o) => {
-    const brandPtr = get(o, "brand") as Parse.Object | undefined;
-    const seriesPtr = get(o, "series") as Parse.Object | undefined;
+    // brand may be a pointer (included); read name safely without relying on pointer id typing
+    const brandObj =
+      (o.get("brand") as Parse.Object<Parse.Attributes> | undefined) ??
+      undefined;
+    const brandName = (brandObj?.get("name") as string | undefined) ?? "";
 
     const partial: Partial<Car> = {
       objectId: o.id,
-      plateNo: get(o, "plateNo"),
-      prevPlateNo: get(o, "prevPlateNo"),
-      deliverDate: toISOorNull(get(o, "deliverDate")),
-      brand: brandPtr?.get?.("name"),
-      series: seriesPtr?.get?.("name"),
-      style: get(o, "style"),
-      buyPriceWan: get(o, "buyPriceWan"),
-      sellPriceWan: get(o, "sellPriceWan"),
+      plateNo: (o.get("plateNo") as string) ?? "",
+      prevPlateNo: (o.get("prevPlateNo") as string) ?? "",
+      deliverDate: toDateFromUnknown(o.get("deliverDate")),
 
-      factoryYM: get(o, "factoryYM"),
-      plateYM: get(o, "plateYM"),
-      model: get(o, "model"),
-      displacementCc: get(o, "displacementCc"),
-      transmission: get(o, "transmission"),
-      color: get(o, "color"),
-      engineNo: get(o, "engineNo"),
-      vin: get(o, "vin"),
-      dealer: get(o, "dealer"),
-      equipment: get(o, "equipment"),
-      remark: get(o, "remark"),
-      condition: get(o, "condition"),
-      inboundDate: toISOorNull(get(o, "inboundDate")),
-      promisedDate: toISOorNull(get(o, "promisedDate")),
-      returnDate: toISOorNull(get(o, "returnDate")),
-      disposition: get(o, "disposition"),
+      // store brand name into your Car model's `brand` string field
+      brand: brandName,
 
-      coverUrl: get(o, "coverUrl"), // optional if you store one
-      location: get(o, "location"),
+      style: (o.get("style") as string) ?? "",
+      buyPriceWan: o.get("buyPriceWan"),
+      sellPriceWan: o.get("sellPriceWan"),
 
-      status: get(o, "status"),
+      factoryYM: (o.get("factoryYM") as string) ?? "",
+      plateYM: (o.get("plateYM") as string) ?? "",
+      model: (o.get("model") as string) ?? "",
+      displacementCc: o.get("displacementCc"),
+      transmission: (o.get("transmission") as string) ?? "",
+      color: (o.get("color") as string) ?? "",
+      engineNo: (o.get("engineNo") as string) ?? "",
+      vin: (o.get("vin") as string) ?? "",
+      dealer: (o.get("dealer") as string) ?? "",
+      seriesCategory: (o.get("seriesCategory") as string) ?? "",
+      equipment: (o.get("equipment") as string) ?? "",
+      remark: (o.get("remark") as string) ?? "",
+      condition: (o.get("condition") as string) ?? "",
+      inboundDate: toDateFromUnknown(o.get("inboundDate")),
+      promisedDate: toDateFromUnknown(o.get("promisedDate")),
+      returnDate: toDateFromUnknown(o.get("returnDate")),
+      disposition: (o.get("disposition") as string) ?? "",
+
+      coverUrl: (o.get("coverUrl") as string) ?? "",
+      location: (o.get("location") as string) ?? "",
+
+      status: (o.get("status") as CarStatus) ?? "active",
     };
-    return { ...(partial as Car) };
+
+    return partial as Car;
   });
 
   return mapped;
@@ -172,8 +151,9 @@ export function a11yProps(i: number) {
   return { id: `inv-tab-${i}`, "aria-controls": `inv-tabpanel-${i}` };
 }
 
-export const toDateInput = (d?: Date | null): string =>
-  d instanceof Date ? d.toISOString().slice(0, 10) : "";
+// Export the helpers too (your existing exports kept)
+export { toDateInput };
 
-export const toDateStr = (x: any): string =>
+/** Keep existing API: coerce unknown into a date string (YYYY-MM-DD) or "" */
+export const toDateStr = (x: unknown): string =>
   x instanceof Date ? toDateInput(x) : typeof x === "string" ? x : "";

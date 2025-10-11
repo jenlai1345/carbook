@@ -20,14 +20,13 @@ import { DATE_TF_PROPS } from "../mui";
  * Document tab - 對應「證件」頁籤畫面。
  * Follows layout similar to FeeTab, using react-hook-form Controller for each field.
  */
+import type { FormValues } from "@/schemas/carSchemas";
 
-export default function DocumentTab({
-  control,
-  errors,
-}: {
-  control: Control<any>;
-  errors: FieldErrors<any>;
-}) {
+type Props = {
+  control: Control<FormValues, any, any>; // note the third generic
+};
+
+export default function DocumentTab({ control }: Props) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Typography variant="subtitle1" gutterBottom fontWeight={700}>
@@ -41,7 +40,7 @@ export default function DocumentTab({
             name="document.audioCode"
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="音響密碼" fullWidth  />
+              <TextField {...field} label="音響密碼" fullWidth />
             )}
           />
         </Grid>
@@ -52,7 +51,7 @@ export default function DocumentTab({
             name="document.spareKey"
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="預備鑰" fullWidth  />
+              <TextField {...field} label="預備鑰" fullWidth />
             )}
           />
         </Grid>

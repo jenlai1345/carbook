@@ -26,6 +26,7 @@ import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import SellIcon from "@mui/icons-material/Sell";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import PeopleIcon from "@mui/icons-material/People";
+import SystemIcon from "@mui/icons-material/Monitor";
 import SettingsIcon from "@mui/icons-material/Settings";
 
 import { useDebounce, matchesKeyword, fetchCars } from "../utils/helpers";
@@ -97,7 +98,7 @@ function CarCard({ car }: { car: Car }) {
           <CardMedia
             component="img"
             image={car.coverUrl}
-            alt={`${car.brand ?? ""} ${car.series ?? car.model ?? ""}`}
+            alt={`${car.brand ?? ""} ${car.seriesCategory ?? car.model ?? ""}`}
             sx={{ height: 160, objectFit: "cover" }}
           />
         )}
@@ -110,7 +111,7 @@ function CarCard({ car }: { car: Car }) {
               justifyContent="space-between"
             >
               <Typography variant="subtitle1" fontWeight={700} noWrap>
-                {car.brand ?? "—"} {car.series ?? car.model ?? ""}
+                {car.brand ?? "—"} {car.model ?? ""}
               </Typography>
               <StatusChip status={car.status} />
             </Stack>
@@ -153,6 +154,7 @@ function NavTile({
     | "Sell"
     | "TrendingUp"
     | "People"
+    | "System"
     | "Settings";
 }) {
   const Icon = {
@@ -161,6 +163,7 @@ function NavTile({
     Sell: SellIcon,
     TrendingUp: TrendingUpIcon,
     People: PeopleIcon,
+    System: SystemIcon,
     Settings: SettingsIcon,
   }[iconName];
   return (
@@ -290,6 +293,9 @@ export default function DashboardPage() {
           </Grid>
           <Grid size={{ xs: 6, md: 3 }}>
             <NavTile href="/customers" title="客戶管理" iconName="People" />
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <NavTile href="/system" title="系統作業" iconName="System" />
           </Grid>
           <Grid size={{ xs: 6, md: 3 }}>
             <NavTile href="/settings" title="設定" iconName="Settings" />

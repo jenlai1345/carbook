@@ -1,27 +1,54 @@
 // components/inventory/BasicTab.tsx
 import * as React from "react";
-import { Controller, FieldErrors, Control } from "react-hook-form";
-import { Box, TextField, Grid } from "@mui/material";
+import { Controller } from "react-hook-form";
+import { Box, TextField, Grid, Autocomplete } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
+import Parse from "@/lib/parseClient";
 import { DATE_TF_PROPS } from "@/components/mui";
-import type { FormValues } from "@/schemas/carSchemas";
 import { useCarSnackbar } from "../CarSnackbarProvider";
+import {
+  DEALER_OPTIONS,
+  DEFAULT_CONDITIONS,
+  DEFAULT_DISPOSITIONS,
+} from "@/utils/constants";
+import type { Control } from "react-hook-form";
+import type { FormValues } from "@/schemas/carSchemas";
 
-interface Props {
-  tab: number;
-  control: Control<FormValues>;
-  errors: FieldErrors<FormValues>;
-}
+type Props = {
+  control: Control<FormValues, any, any>; // note the third generic
+};
 
-export default function BasicTab({
-  control,
-  errors,
-}: {
-  control: Control<any>;
-  errors: FieldErrors<any>;
-}) {
-  const { showMessage } = useCarSnackbar();
+export default function BasicTab({ control }: Props) {
+  const { showMessage: _showMessage } = useCarSnackbar(); // underscore to avoid unused warning
+
+  const [conditionOpts, setConditionOpts] =
+    React.useState<string[]>(DEFAULT_CONDITIONS);
+  const [dispositionOpts, setDispositionOpts] =
+    React.useState<string[]>(DEFAULT_DISPOSITIONS);
+
+  // Optional: load options from Parse "Setting" (scope: "inventory")
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const Setting = Parse.Object.extend("Setting");
+        const q = new Parse.Query(Setting);
+        q.equalTo("scope", "inventory");
+        const s = await q.first();
+        if (!alive || !s) return;
+        const cond = s.get("conditionOptions");
+        const disp = s.get("dispositionOptions");
+        if (Array.isArray(cond)) setConditionOpts(cond.filter(Boolean));
+        if (Array.isArray(disp)) setDispositionOpts(disp.filter(Boolean));
+      } catch {
+        // keep defaults silently
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <Box sx={{ p: 2 }}>
@@ -29,13 +56,15 @@ export default function BasicTab({
         {/* 出廠（年/月） */}
         <Grid size={{ xs: 6, md: 4 }}>
           <Controller
-            name="factoryYM"
+            name={"factoryYM" as any}
             control={control}
             render={({ field }) => (
               <DatePicker
                 label="出廠（年/月）"
                 views={["year", "month"]}
-                value={field.value ? dayjs(`${field.value}-01`) : null}
+                value={
+                  field.value ? (dayjs(`${field.value}-01`) as Dayjs) : null
+                }
                 onChange={(v) => field.onChange(v ? v.format("YYYY-MM") : "")}
                 slotProps={{ textField: DATE_TF_PROPS }}
               />
@@ -46,13 +75,15 @@ export default function BasicTab({
         {/* 領牌（年/月） */}
         <Grid size={{ xs: 6, md: 4 }}>
           <Controller
-            name="plateYM"
+            name={"plateYM" as any}
             control={control}
             render={({ field }) => (
               <DatePicker
                 label="領牌（年/月）"
                 views={["year", "month"]}
-                value={field.value ? dayjs(`${field.value}-01`) : null}
+                value={
+                  field.value ? (dayjs(`${field.value}-01`) as Dayjs) : null
+                }
                 onChange={(v) => field.onChange(v ? v.format("YYYY-MM") : "")}
                 slotProps={{ textField: DATE_TF_PROPS }}
               />
@@ -62,7 +93,7 @@ export default function BasicTab({
 
         <Grid size={{ xs: 6, md: 4 }}>
           <Controller
-            name="model"
+            name={"model" as any}
             control={control}
             render={({ field }) => (
               <TextField {...field} label="Model" fullWidth />
@@ -72,7 +103,7 @@ export default function BasicTab({
 
         <Grid size={{ xs: 6, md: 4 }}>
           <Controller
-            name="displacementCc"
+            name={"displacementCc" as any}
             control={control}
             render={({ field }) => (
               <TextField
@@ -87,7 +118,7 @@ export default function BasicTab({
 
         <Grid size={{ xs: 6, md: 4 }}>
           <Controller
-            name="transmission"
+            name={"transmission" as any}
             control={control}
             render={({ field }) => (
               <TextField
@@ -107,7 +138,7 @@ export default function BasicTab({
 
         <Grid size={{ xs: 6, md: 4 }}>
           <Controller
-            name="color"
+            name={"color" as any}
             control={control}
             render={({ field }) => (
               <TextField {...field} label="顏色" fullWidth />
@@ -117,7 +148,7 @@ export default function BasicTab({
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Controller
-            name="engineNo"
+            name={"engineNo" as any}
             control={control}
             render={({ field }) => (
               <TextField {...field} label="引擎號碼" fullWidth />
@@ -127,7 +158,7 @@ export default function BasicTab({
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Controller
-            name="vin"
+            name={"vin" as any}
             control={control}
             render={({ field }) => (
               <TextField {...field} label="車身號碼" fullWidth />
@@ -137,17 +168,24 @@ export default function BasicTab({
 
         <Grid size={{ xs: 12, md: 2 }}>
           <Controller
-            name="dealer"
+            name={"dealer" as any}
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="代理商" fullWidth />
+              <Autocomplete<string, false, false, false>
+                options={[...DEALER_OPTIONS]}
+                value={field.value ? String(field.value) : null}
+                onChange={(_e, v) => field.onChange(v ?? "")}
+                renderInput={(params) => (
+                  <TextField {...params} label="代理商" fullWidth />
+                )}
+              />
             )}
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 10 }}>
           <Controller
-            name="equipment"
+            name={"equipment" as any}
             control={control}
             render={({ field }) => (
               <TextField {...field} label="配備" multiline fullWidth />
@@ -157,7 +195,7 @@ export default function BasicTab({
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Controller
-            name="remark"
+            name={"remark" as any}
             control={control}
             render={({ field }) => (
               <TextField {...field} label="備註" multiline fullWidth />
@@ -167,10 +205,19 @@ export default function BasicTab({
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Controller
-            name="condition"
+            name={"condition" as any}
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="整備情形" fullWidth />
+              <Autocomplete<string, false, false, true>
+                freeSolo
+                options={conditionOpts}
+                value={field.value ? String(field.value) : null}
+                onInputChange={(_e, v) => field.onChange(v ?? "")}
+                onChange={(_e, v) => field.onChange(v ?? "")}
+                renderInput={(params) => (
+                  <TextField {...params} label="整備情形" fullWidth />
+                )}
+              />
             )}
           />
         </Grid>
@@ -178,12 +225,12 @@ export default function BasicTab({
         {/* 三個日曆 */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Controller
-            name="inboundDate"
+            name={"inboundDate" as any}
             control={control}
             render={({ field }) => (
               <DatePicker
                 label="進廠日（年/月/日）"
-                value={field.value ? dayjs(field.value) : null}
+                value={field.value ? (dayjs(field.value) as Dayjs) : null}
                 onChange={(v) =>
                   field.onChange(v ? v.format("YYYY-MM-DD") : "")
                 }
@@ -195,12 +242,12 @@ export default function BasicTab({
 
         <Grid size={{ xs: 12, md: 4 }}>
           <Controller
-            name="promisedDate"
+            name={"promisedDate" as any}
             control={control}
             render={({ field }) => (
               <DatePicker
                 label="預交日（年/月/日）"
-                value={field.value ? dayjs(field.value) : null}
+                value={field.value ? (dayjs(field.value) as Dayjs) : null}
                 onChange={(v) =>
                   field.onChange(v ? v.format("YYYY-MM-DD") : "")
                 }
@@ -212,12 +259,12 @@ export default function BasicTab({
 
         <Grid size={{ xs: 12, md: 4 }}>
           <Controller
-            name="returnDate"
+            name={"returnDate" as any}
             control={control}
             render={({ field }) => (
               <DatePicker
                 label="回公司日（年/月/日）"
-                value={field.value ? dayjs(field.value) : null}
+                value={field.value ? (dayjs(field.value) as Dayjs) : null}
                 onChange={(v) =>
                   field.onChange(v ? v.format("YYYY-MM-DD") : "")
                 }
@@ -229,10 +276,19 @@ export default function BasicTab({
 
         <Grid size={{ xs: 12 }}>
           <Controller
-            name="disposition"
+            name={"disposition" as any}
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="處置" fullWidth />
+              <Autocomplete<string, false, false, true>
+                freeSolo
+                options={dispositionOpts}
+                value={field.value ? String(field.value) : null}
+                onInputChange={(_e, v) => field.onChange(v ?? "")}
+                onChange={(_e, v) => field.onChange(v ?? "")}
+                renderInput={(params) => (
+                  <TextField {...params} label="處置" fullWidth />
+                )}
+              />
             )}
           />
         </Grid>

@@ -8,8 +8,7 @@ export const headerSchema = z.object({
   deliverDate: z.string().optional().or(z.literal("")),
   brandId: z.string().optional().or(z.literal("")),
   brandName: z.string().min(1, "必填"),
-  seriesId: z.string().optional().or(z.literal("")),
-  seriesName: z.string().optional().or(z.literal("")),
+  seriesCategory: z.string().optional(), // "國產" | "日系"
   style: z.string().optional().or(z.literal("")),
   buyPriceWan: z.string().optional().or(z.literal("")),
   sellPriceWan: z.string().optional().or(z.literal("")),
@@ -25,7 +24,7 @@ export const basicSchema = z.object({
   color: z.string().optional().or(z.literal("")),
   engineNo: z.string().optional().or(z.literal("")),
   vin: z.string().optional().or(z.literal("")),
-  dealer: z.string().optional().or(z.literal("")),
+  dealer: z.string().optional().or(z.literal("")), // "外匯" | "貿易商" |
   equipment: z.string().optional().or(z.literal("")),
   remark: z.string().optional().or(z.literal("")),
   condition: z.string().optional().or(z.literal("")),

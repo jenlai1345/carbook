@@ -13,14 +13,15 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useRouter } from "next/router";
-import { useForm, Controller, useWatch } from "react-hook-form";
+
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+
 import Parse from "../../lib/parseClient";
 import CarToolbar from "@/components/CarToolbar";
 import {
   a11yProps,
   ensureBrandByName,
-  ensureSeriesByName,
   toDateInput,
   toDateStr,
   useDebounce,
@@ -48,6 +49,7 @@ import {
   RECEIPT_TAB_INDEX,
   FEE_TAB_INDEX,
   INSURANCE_TAB_INDEX,
+  SERIES_CATEGORIES,
 } from "@/utils/constants";
 import {
   CarSnackbarProvider,
@@ -83,16 +85,15 @@ function InventoryNewContent() {
     getValues,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  } = useForm<FormValues, any, any>({
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       plateNo: "",
       prevPlateNo: "",
       deliverDate: "",
       brandId: "",
       brandName: "",
-      seriesId: "",
-      seriesName: "",
+      seriesCategory: "",
       style: "",
       buyPriceWan: "",
       sellPriceWan: "",
@@ -218,12 +219,6 @@ function InventoryNewContent() {
   const [brandInput, setBrandInput] = React.useState("");
   const debBrand = useDebounce(brandInput);
 
-  const [seriesOpts, setSeriesOpts] = React.useState<Option[]>([]);
-  const [seriesInput, setSeriesInput] = React.useState("");
-  const debSeries = useDebounce(seriesInput);
-
-  /* ... (brand & series effects unchanged) ... */
-
   React.useEffect(() => {
     let active = true;
     (async () => {
@@ -243,28 +238,28 @@ function InventoryNewContent() {
     };
   }, [debBrand]);
 
-  React.useEffect(() => {
-    let active = true;
-    (async () => {
-      const q = new Parse.Query("Series");
-      if (watchedBrandId) {
-        const Brand = Parse.Object.extend("Brand");
-        q.equalTo("brand", Brand.createWithoutData(watchedBrandId));
-      }
-      if (debSeries) q.matches("name", debSeries, "i");
-      q.ascending("name").limit(20);
-      const r = await q.find();
-      if (active) {
-        const arr = r
-          .map((x) => ({ id: x.id || "", name: x.get("name") as string }))
-          .filter((o) => o.id !== "");
-        setSeriesOpts(arr);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [debSeries, watchedBrandId]);
+  // React.useEffect(() => {
+  //   let active = true;
+  //   (async () => {
+  //     const q = new Parse.Query("Series");
+  //     if (watchedBrandId) {
+  //       const Brand = Parse.Object.extend("Brand");
+  //       q.equalTo("brand", Brand.createWithoutData(watchedBrandId));
+  //     }
+  //     if (debSeries) q.matches("name", debSeries, "i");
+  //     q.ascending("name").limit(20);
+  //     const r = await q.find();
+  //     if (active) {
+  //       const arr = r
+  //         .map((x) => ({ id: x.id || "", name: x.get("name") as string }))
+  //         .filter((o) => o.id !== "");
+  //       setSeriesOpts(arr);
+  //     }
+  //   })();
+  //   return () => {
+  //     active = false;
+  //   };
+  // }, [debSeries, watchedBrandId]);
 
   /* --------- prefill if carId --------- */
   React.useEffect(() => {
@@ -280,27 +275,14 @@ function InventoryNewContent() {
         if (!alive) return;
 
         const brandObj = o.get("brand") as Parse.Object | undefined;
-        const seriesObj = o.get("series") as Parse.Object | undefined;
         const ownerObj = o.get("originalOwner") as Parse.Object | undefined;
         const buyerObj = o.get("newOwner") as Parse.Object | undefined;
 
         const brandId = brandObj?.id ?? "";
         const brandName = (brandObj?.get?.("name") as string) ?? "";
-        const seriesId = seriesObj?.id ?? "";
-        const seriesName = (seriesObj?.get?.("name") as string) ?? "";
 
         if (brandId && brandName && !brandOpts.find((b) => b.id === brandId)) {
           setBrandOpts((prev) => [{ id: brandId, name: brandName }, ...prev]);
-        }
-        if (
-          seriesId &&
-          seriesName &&
-          !seriesOpts.find((s) => s.id === seriesId)
-        ) {
-          setSeriesOpts((prev) => [
-            { id: seriesId, name: seriesName },
-            ...prev,
-          ]);
         }
 
         // ✅ Declare baseValues as Partial<FormValues> so you can add nested keys safely
@@ -310,8 +292,7 @@ function InventoryNewContent() {
           deliverDate: toDateInput(o.get("deliverDate")),
           brandId,
           brandName,
-          seriesId,
-          seriesName,
+          seriesCategory: o.get("seriesCategory") ?? "",
           style: o.get("style") ?? "",
           buyPriceWan: (o.get("buyPriceWan") ?? "").toString(),
           sellPriceWan: (o.get("sellPriceWan") ?? "").toString(),
@@ -571,16 +552,11 @@ function InventoryNewContent() {
 
   /* --------- submit (create or update) --------- */
   const onSubmit = async (v: FormValues) => {
-    // Ensure Brand/Series exist (unchanged)
+    // Ensure Brand exist (unchanged)
     let brandId = v.brandId;
     if (!brandId && v.brandName) {
       brandId = await ensureBrandByName(v.brandName);
       setValue("brandId", brandId || "");
-    }
-    let seriesId = v.seriesId;
-    if (!seriesId && v.seriesName && brandId) {
-      seriesId = await ensureSeriesByName(v.seriesName, brandId);
-      setValue("seriesId", seriesId || "");
     }
 
     const Car = Parse.Object.extend("Car");
@@ -593,12 +569,6 @@ function InventoryNewContent() {
     } else {
       car.unset("brand");
     }
-    if (seriesId) {
-      const Series = Parse.Object.extend("Series");
-      car.set("series", Series.createWithoutData(seriesId));
-    } else {
-      car.unset("series");
-    }
 
     // top fixed fields
     car.set("plateNo", v.plateNo);
@@ -607,6 +577,7 @@ function InventoryNewContent() {
     car.set("style", v.style || null);
     car.set("buyPriceWan", v.buyPriceWan ? Number(v.buyPriceWan) : null);
     car.set("sellPriceWan", v.sellPriceWan ? Number(v.sellPriceWan) : null);
+    car.set("seriesCategory", v.seriesCategory || null);
 
     // 基本 tab fields
     car.set("factoryYM", v.factoryYM || null);
@@ -867,12 +838,6 @@ function InventoryNewContent() {
     return id ? brandOpts.find((o) => o.id === id) ?? null : name || null;
   }, [brandOpts, getValues("brandId"), getValues("brandName")]);
 
-  const seriesValue = React.useMemo(() => {
-    const id = getValues("seriesId");
-    const name = getValues("seriesName");
-    return id ? seriesOpts.find((o) => o.id === id) ?? null : name || null;
-  }, [seriesOpts, getValues("seriesId"), getValues("seriesName")]);
-
   /* -------------------- render -------------------- */
   return (
     <LocalizationProvider
@@ -946,33 +911,15 @@ function InventoryNewContent() {
             {/* 車系 */}
             <Grid size={{ xs: 6, md: 3 }}>
               <Controller
-                name="seriesName"
+                name="seriesCategory"
                 control={control}
                 render={({ field }) => (
                   <Autocomplete
-                    freeSolo
-                    options={seriesOpts}
-                    getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
-                    value={seriesValue as any}
-                    onInputChange={(_, v) => {
-                      field.onChange(v);
-                      setSeriesInput(v);
-                      setValue("seriesId", "");
-                    }}
-                    onChange={(_, v) => {
-                      if (typeof v === "string") {
-                        setValue("seriesName", v);
-                        setValue("seriesId", "");
-                      } else if (v) {
-                        setValue("seriesName", v.name);
-                        setValue("seriesId", v.id);
-                      } else {
-                        setValue("seriesName", "");
-                        setValue("seriesId", "");
-                      }
-                    }}
+                    options={[...SERIES_CATEGORIES]}
+                    value={field.value || null}
+                    onChange={(_, v) => field.onChange(v ?? "")}
                     renderInput={(params) => (
-                      <TextField {...params} label="車系" fullWidth />
+                      <TextField {...params} label="車系分類" fullWidth />
                     )}
                   />
                 )}
@@ -995,26 +942,17 @@ function InventoryNewContent() {
                       field.onChange(v);
                       setBrandInput(v);
                       setValue("brandId", "");
-                      // reset series when brand changes
-                      setValue("seriesId", "");
-                      setValue("seriesName", "");
                     }}
                     onChange={(_, v) => {
                       if (typeof v === "string") {
                         setValue("brandName", v);
                         setValue("brandId", "");
-                        setValue("seriesId", "");
-                        setValue("seriesName", "");
                       } else if (v) {
                         setValue("brandName", v.name);
                         setValue("brandId", v.id);
-                        setValue("seriesId", "");
-                        setValue("seriesName", "");
                       } else {
                         setValue("brandName", "");
                         setValue("brandId", "");
-                        setValue("seriesId", "");
-                        setValue("seriesName", "");
                       }
                     }}
                     renderInput={(params) => (
@@ -1099,11 +1037,11 @@ function InventoryNewContent() {
             </Tabs>
 
             <TabPanel value={tab} index={0}>
-              <BasicTab control={control} errors={errors} />
+              <BasicTab control={control} />
             </TabPanel>
 
             <TabPanel value={tab} index={1}>
-              <DocumentTab control={control} errors={errors} />
+              <DocumentTab control={control} />
             </TabPanel>
             <TabPanel value={tab} index={2}>
               <InBoundTab control={control} errors={errors} />

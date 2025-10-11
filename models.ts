@@ -22,7 +22,7 @@ export interface Car {
   deliverDate?: string | Date | null;
 
   brand?: string; // Pointer<Brand> resolved to name
-  series?: string; // Pointer<Series> resolved to name
+  seriesCategory?: string;
 
   style?: string;
   buyPriceWan?: number;
@@ -60,15 +60,6 @@ export interface Car {
 export interface Brand {
   objectId: string;
   name: string; // unique
-}
-
-// --------------------
-// Series
-// --------------------
-export interface Series {
-  objectId: string;
-  name: string;
-  brand?: string; // resolved brand name
 }
 
 // --------------------
