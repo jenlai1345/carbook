@@ -1,8 +1,8 @@
+// pages/dashboard.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import CarToolbar from "../components/CarToolbar";
 import type { Car, CarStatus } from "../models";
-
 import {
   Box,
   Tabs,
@@ -19,6 +19,11 @@ import {
   Badge,
   CircularProgress,
   CardActionArea,
+  Alert,
+  IconButton,
+  Menu,
+  MenuItem,
+  Snackbar,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -28,9 +33,16 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import PeopleIcon from "@mui/icons-material/People";
 import SystemIcon from "@mui/icons-material/Monitor";
 import SettingsIcon from "@mui/icons-material/Settings";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import {
+  useDebounce,
+  matchesKeyword,
+  fetchCars,
+  deleteCarById,
+  setCarStatus,
+} from "../utils/helpers";
 
-import { useDebounce, matchesKeyword, fetchCars } from "../utils/helpers";
-
+/* -------------------- internal helpers -------------------- */
 function a11yProps(index: number) {
   return { id: `dash-tab-${index}`, "aria-controls": `dash-tabpanel-${index}` };
 }
@@ -71,73 +83,6 @@ function StatusChip({ status }: { status: CarStatus }) {
       size="small"
       variant={status === "sold" ? "outlined" : "filled"}
     />
-  );
-}
-
-function CarCard({ car }: { car: Car }) {
-  const router = useRouter();
-
-  const goEdit = () => {
-    router.push({ pathname: "/inventory/new", query: { carId: car.objectId } });
-  };
-
-  return (
-    <Card
-      sx={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: 3,
-      }}
-    >
-      <CardActionArea
-        onClick={goEdit}
-        sx={{ display: "flex", flexDirection: "column", alignItems: "stretch" }}
-      >
-        {car.coverUrl && (
-          <CardMedia
-            component="img"
-            image={car.coverUrl}
-            alt={`${car.brand ?? ""} ${car.seriesCategory ?? car.model ?? ""}`}
-            sx={{ height: 160, objectFit: "cover" }}
-          />
-        )}
-        <CardContent sx={{ flexGrow: 1, width: "100%" }}>
-          <Stack spacing={0.5}>
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              justifyContent="space-between"
-            >
-              <Typography variant="subtitle1" fontWeight={700} noWrap>
-                {car.brand ?? "—"} {car.model ?? ""}
-              </Typography>
-              <StatusChip status={car.status} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary">
-              {car.factoryYM ?? car.plateYM ?? "—"} · {car.color ?? "—"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              VIN: {car.vin ?? "—"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              引擎號: {car.engineNo ?? "—"}
-            </Typography>
-            {car.location && (
-              <Typography variant="body2" color="text.secondary" noWrap>
-                門市：{car.location}
-              </Typography>
-            )}
-            {typeof car.sellPriceWan === "number" && (
-              <Typography variant="h6" sx={{ pt: 0.5 }}>
-                {car.sellPriceWan.toLocaleString()} 萬
-              </Typography>
-            )}
-          </Stack>
-        </CardContent>
-      </CardActionArea>
-    </Card>
   );
 }
 
@@ -187,6 +132,145 @@ function NavTile({
   );
 }
 
+function CarCard({
+  car,
+  onDelete,
+  onMarkSold,
+  onMarkActive,
+  busy,
+}: {
+  car: Car;
+  onDelete: (car: Car) => void;
+  onMarkSold: (car: Car) => void;
+  onMarkActive: (car: Car) => void;
+  busy?: boolean;
+}) {
+  const router = useRouter();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const goEdit = () => {
+    router.push({ pathname: "/inventory/new", query: { carId: car.objectId } });
+  };
+
+  return (
+    <Card
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: 3,
+        opacity: busy ? 0.6 : 1,
+        pointerEvents: busy ? "none" : "auto",
+      }}
+    >
+      <CardActionArea
+        onClick={goEdit}
+        sx={{ display: "flex", flexDirection: "column", alignItems: "stretch" }}
+      >
+        {car.coverUrl && (
+          <CardMedia
+            component="img"
+            image={car.coverUrl}
+            alt={`${car.brand ?? ""} ${car.seriesCategory ?? car.model ?? ""}`}
+            sx={{ height: 160, objectFit: "cover" }}
+          />
+        )}
+        <CardContent sx={{ flexGrow: 1, width: "100%" }}>
+          <Stack spacing={0.5}>
+            {/* Header row WITH actions inside, so nothing overlaps */}
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <Typography variant="subtitle1" fontWeight={700} noWrap>
+                {car.brand ?? "—"} {car.model ?? ""}
+              </Typography>
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <StatusChip status={car.status} />
+                <IconButton
+                  size="small"
+                  aria-label="actions"
+                  onClick={(e) => {
+                    e.stopPropagation(); // don't trigger CardActionArea
+                    setAnchorEl(e.currentTarget);
+                  }}
+                >
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              </Stack>
+            </Stack>
+
+            <Typography variant="body2" color="text.secondary">
+              {car.factoryYM ?? car.plateYM ?? "—"} · {car.color ?? "—"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>
+              VIN: {car.vin ?? "—"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>
+              引擎號: {car.engineNo ?? "—"}
+            </Typography>
+            {car.location && (
+              <Typography variant="body2" color="text.secondary" noWrap>
+                門市：{car.location}
+              </Typography>
+            )}
+            {typeof car.sellPriceWan === "number" && (
+              <Typography variant="h6" sx={{ pt: 0.5 }}>
+                {car.sellPriceWan.toLocaleString()} 萬
+              </Typography>
+            )}
+          </Stack>
+        </CardContent>
+      </CardActionArea>
+
+      {/* Menu lives outside CardActionArea to avoid accidental navigation */}
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={() => setAnchorEl(null)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {car.status === "active" ? (
+          <MenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              setAnchorEl(null);
+              onMarkSold(car);
+            }}
+          >
+            標記為已售出
+          </MenuItem>
+        ) : car.status === "sold" ? (
+          <MenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              setAnchorEl(null);
+              onMarkActive(car);
+            }}
+          >
+            移回在庫
+          </MenuItem>
+        ) : null}
+        <MenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            setAnchorEl(null);
+            onDelete(car);
+          }}
+          sx={{ color: "error.main" }}
+        >
+          刪除
+        </MenuItem>
+      </Menu>
+    </Card>
+  );
+}
+
+/* -------------------- page -------------------- */
 export default function DashboardPage() {
   const router = useRouter();
   const qParam = (router.query.q as string) ?? "";
@@ -203,6 +287,18 @@ export default function DashboardPage() {
 
   const [cars, setCars] = useState<Car[] | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // action UI state
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [snack, setSnack] = useState<{
+    open: boolean;
+    severity: "success" | "error";
+    msg: string;
+  }>({
+    open: false,
+    severity: "success",
+    msg: "",
+  });
 
   useEffect(() => {
     let alive = true;
@@ -262,6 +358,84 @@ export default function DashboardPage() {
       undefined,
       { shallow: true }
     );
+  };
+
+  // ------- local state helpers -------
+  const updateLocalCar = (id: string, patch: Partial<Car>) => {
+    setCars((prev) =>
+      prev
+        ? prev.map((c) => (c.objectId === id ? { ...c, ...patch } : c))
+        : prev
+    );
+  };
+  const removeLocalCar = (id: string) => {
+    setCars((prev) => (prev ? prev.filter((c) => c.objectId !== id) : prev));
+  };
+
+  // ------- actions -------
+  const onDelete = async (car: Car) => {
+    if (
+      !confirm(
+        `確定要刪除「${car.brand ?? ""} ${
+          car.model ?? ""
+        }」嗎？此操作無法復原。`
+      )
+    )
+      return;
+    setBusyId(car.objectId);
+    const prev = cars;
+    removeLocalCar(car.objectId); // optimistic
+    try {
+      await deleteCarById(car.objectId);
+      setSnack({ open: true, severity: "success", msg: "已刪除車輛。" });
+    } catch (e: any) {
+      setCars(prev || null); // rollback
+      setSnack({
+        open: true,
+        severity: "error",
+        msg: `刪除失敗：${e?.message ?? e}`,
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const onMarkSold = async (car: Car) => {
+    setBusyId(car.objectId);
+    const oldStatus = car.status;
+    updateLocalCar(car.objectId, { status: "sold" as CarStatus }); // optimistic
+    try {
+      await setCarStatus(car.objectId, "sold");
+      setSnack({ open: true, severity: "success", msg: "已標記為已售出。" });
+    } catch (e: any) {
+      updateLocalCar(car.objectId, { status: oldStatus }); // rollback
+      setSnack({
+        open: true,
+        severity: "error",
+        msg: `更新失敗：${e?.message ?? e}`,
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const onMarkActive = async (car: Car) => {
+    setBusyId(car.objectId);
+    const oldStatus = car.status;
+    updateLocalCar(car.objectId, { status: "active" as CarStatus }); // optimistic
+    try {
+      await setCarStatus(car.objectId, "active");
+      setSnack({ open: true, severity: "success", msg: "已移回在庫。" });
+    } catch (e: any) {
+      updateLocalCar(car.objectId, { status: oldStatus }); // rollback
+      setSnack({
+        open: true,
+        severity: "error",
+        msg: `更新失敗：${e?.message ?? e}`,
+      });
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
@@ -375,7 +549,13 @@ export default function DashboardPage() {
               <Grid container spacing={2}>
                 {activeCars.map((car) => (
                   <Grid key={car.objectId} size={{ xs: 12, md: 3 }}>
-                    <CarCard car={car} />
+                    <CarCard
+                      car={car}
+                      busy={busyId === car.objectId}
+                      onDelete={onDelete}
+                      onMarkSold={onMarkSold}
+                      onMarkActive={onMarkActive}
+                    />
                   </Grid>
                 ))}
                 {activeCars.length === 0 && (
@@ -398,7 +578,13 @@ export default function DashboardPage() {
               <Grid container spacing={2}>
                 {archivedCars.map((car) => (
                   <Grid key={car.objectId} size={{ xs: 12, md: 3 }}>
-                    <CarCard car={car} />
+                    <CarCard
+                      car={car}
+                      busy={busyId === car.objectId}
+                      onDelete={onDelete}
+                      onMarkSold={onMarkSold}
+                      onMarkActive={onMarkActive}
+                    />
                   </Grid>
                 ))}
                 {archivedCars.length === 0 && (
@@ -419,6 +605,22 @@ export default function DashboardPage() {
           </>
         )}
       </Box>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={2800}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnack((s) => ({ ...s, open: false }))}
+          severity={snack.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

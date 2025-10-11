@@ -169,3 +169,23 @@ export async function loadSettingsType(type: string): Promise<string[]> {
     list.map((o) => String(o.get("name") ?? "")).filter(Boolean)
   );
 }
+
+/** Delete a Car by id */
+export async function deleteCarById(objectId: string): Promise<void> {
+  const Car = Parse.Object.extend("Car");
+  const o = new Car();
+  o.id = objectId;
+  await o.destroy();
+}
+
+/** Set Car.status */
+export async function setCarStatus(
+  objectId: string,
+  status: CarStatus
+): Promise<void> {
+  const Car = Parse.Object.extend("Car");
+  const o = new Car();
+  o.id = objectId;
+  o.set("status", status);
+  await o.save(null, { useMasterKey: false });
+}
