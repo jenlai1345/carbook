@@ -1,40 +1,42 @@
 // components/NewOwnerTab.tsx
 import * as React from "react";
-import { Box, TextField, Typography, Grid } from "@mui/material";
+import { Grid, Box, TextField, Typography, MenuItem } from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DATE_TF_PROPS } from "../mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
+import { loadSettingsType } from "@/utils/helpers";
 
 export type NewOwnerForm = {
-  newOwnerName: string; // 新車主名
-  newOwnerPhone: string; // 電話
+  newOwnerName: string;
+  newOwnerPhone: string;
 
-  newContractDate: string; // 合約日期 YYYY-MM-DD
-  handoverDate: string; // 交車日期 YYYY-MM-DD
-  newDealPriceWan: string; // 成交價（萬）
-  newCommissionWan: string; // 佣金（萬）
+  newContractDate: string; // YYYY-MM-DD
+  handoverDate: string; // YYYY-MM-DD
+  newDealPriceWan: string;
+  newCommissionWan: string;
 
-  newOwnerIdNo: string; // 身分字號
-  newOwnerBirth: string; // 生日 YYYY-MM-DD
+  newOwnerIdNo: string;
+  newOwnerBirth: string; // YYYY-MM-DD
 
-  newOwnerRegAddr: string; // 戶籍地址
-  newOwnerRegZip: string; // 戶籍 郵號
-  newOwnerMailAddr: string; // 通訊地址
-  newOwnerMailZip: string; // 通訊 郵號
+  newOwnerRegAddr: string;
+  newOwnerRegZip: string;
+  newOwnerMailAddr: string;
+  newOwnerMailZip: string;
 
-  buyerAgentName: string; // 代購人
-  buyerAgentPhone: string; // 代購人電話
-  referrerName2: string; // 介紹人
-  referrerPhone2: string; // 介紹人電話
+  buyerAgentName: string;
+  buyerAgentPhone: string;
+  referrerName2: string;
+  referrerPhone2: string;
 
-  salesmanName: string; // 銷售員
-  salesCommissionPct: string; // 銷售佣金比率（%）
-  salesMode: string; // 銷貨模式（選單）
+  salesmanName: string; // 銷售員（DB: salesperson）
+  salesCommissionPct: string;
+  salesMode: string; // 銷貨模式（DB: saleStyle）
+  salesMethod?: string; // 銷售方式（DB: salesMethod） ← 新增欄位
 
-  preferredShop: string; // 特約廠
-  newOwnerNote: string; // 備註
+  preferredShop: string;
+  newOwnerNote: string;
 };
 
 export default function NewOwnerTab({
@@ -45,6 +47,37 @@ export default function NewOwnerTab({
   errors: FieldErrors<any>;
 }) {
   const { showMessage } = useCarSnackbar();
+
+  // DB-driven options
+  const [salespersons, setSalespersons] = React.useState<string[]>([""]);
+  const [saleStyles, setSaleStyles] = React.useState<string[]>([""]); // 銷貨模式
+  const [salesMethods, setSalesMethods] = React.useState<string[]>([""]); // 銷售方式
+  const [perferredShops, setPerferredShops] = React.useState<string[]>([""]); // 特約廠
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [sp, ss, sm, ssh] = await Promise.all([
+          loadSettingsType("salesperson"),
+          loadSettingsType("saleStyle"),
+          loadSettingsType("salesMethod"),
+          loadSettingsType("preferredShop"),
+        ]);
+        if (!alive) return;
+        setSalespersons(["", ...sp.filter(Boolean)]);
+        setSaleStyles(["", ...ss.filter(Boolean)]);
+        setSalesMethods(["", ...sm.filter(Boolean)]);
+        setPerferredShops(["", ...ssh.filter(Boolean)]);
+      } catch (e) {
+        console.error("Failed to load sales settings:", e);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -249,13 +282,19 @@ export default function NewOwnerTab({
           />
         </Grid>
 
-        {/* 銷售員 / 銷售佣金比率% / 銷貨模式 */}
+        {/* 銷售員（DB: salesperson） / 銷售佣金比率% / 銷貨模式（DB: saleStyle） */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Controller
             name="salesmanName"
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="銷售員" fullWidth />
+              <TextField {...field} select label="銷售員" fullWidth>
+                {salespersons.map((v) => (
+                  <MenuItem key={v || "__blank"} value={v}>
+                    {v || "（未選）"}
+                  </MenuItem>
+                ))}
+              </TextField>
             )}
           />
         </Grid>
@@ -278,29 +317,46 @@ export default function NewOwnerTab({
             name="salesMode"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                SelectProps={{ native: true }}
-                label="銷貨模式"
-                fullWidth
-              >
-                <option value=""></option>
-                <option value="現金">現金</option>
-                <option value="貸款">貸款</option>
-                <option value="其他">其他</option>
+              <TextField {...field} select label="銷貨模式" fullWidth>
+                {saleStyles.map((v) => (
+                  <MenuItem key={v || "__blank"} value={v}>
+                    {v || "（未選）"}
+                  </MenuItem>
+                ))}
               </TextField>
             )}
           />
         </Grid>
 
-        {/* 特約廠 */}
+        {/* 銷售方式（DB: salesMethod） */}
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Controller
+            name="salesMethod"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} select label="銷售方式" fullWidth>
+                {salesMethods.map((v) => (
+                  <MenuItem key={v || "__blank"} value={v}>
+                    {v || "（未選）"}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+          />
+        </Grid>
+
         <Grid size={{ xs: 12 }}>
           <Controller
             name="preferredShop"
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="特約廠" fullWidth />
+              <TextField {...field} select label="特約廠" fullWidth>
+                {perferredShops.map((v) => (
+                  <MenuItem key={v || "__blank"} value={v}>
+                    {v || "（未選）"}
+                  </MenuItem>
+                ))}
+              </TextField>
             )}
           />
         </Grid>

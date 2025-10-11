@@ -7,13 +7,10 @@ import dayjs, { Dayjs } from "dayjs";
 import Parse from "@/lib/parseClient";
 import { DATE_TF_PROPS } from "@/components/mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
-import {
-  DEALER_OPTIONS,
-  DEFAULT_CONDITIONS,
-  DEFAULT_DISPOSITIONS,
-} from "@/utils/constants";
+import { DEALER_OPTIONS } from "@/utils/constants";
 import type { Control } from "react-hook-form";
 import type { FormValues } from "@/schemas/carSchemas";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
 type Props = {
   control: Control<FormValues, any, any>; // note the third generic
@@ -22,29 +19,42 @@ type Props = {
 export default function BasicTab({ control }: Props) {
   const { showMessage: _showMessage } = useCarSnackbar(); // underscore to avoid unused warning
 
-  const [conditionOpts, setConditionOpts] =
-    React.useState<string[]>(DEFAULT_CONDITIONS);
-  const [dispositionOpts, setDispositionOpts] =
-    React.useState<string[]>(DEFAULT_DISPOSITIONS);
+  const [conditionOpts, setConditionOpts] = React.useState<string[]>([]);
+  const [dispositionOpts, setDispositionOpts] = React.useState<string[]>([]);
 
   // Optional: load options from Parse "Setting" (scope: "inventory")
   React.useEffect(() => {
     let alive = true;
+
     (async () => {
       try {
         const Setting = Parse.Object.extend("Setting");
-        const q = new Parse.Query(Setting);
-        q.equalTo("scope", "inventory");
-        const s = await q.first();
-        if (!alive || !s) return;
-        const cond = s.get("conditionOptions");
-        const disp = s.get("dispositionOptions");
-        if (Array.isArray(cond)) setConditionOpts(cond.filter(Boolean));
-        if (Array.isArray(disp)) setDispositionOpts(disp.filter(Boolean));
-      } catch {
+
+        // 整備情形
+        const qCond = new Parse.Query(Setting);
+        qCond.equalTo("type", "reconditionStatus");
+        qCond.equalTo("active", true);
+        qCond.ascending("order").addAscending("name");
+        const condList = await qCond.find();
+
+        if (!alive) return;
+        setConditionOpts(condList.map((o) => o.get("name")).filter(Boolean));
+
+        // 處置設定
+        const qDisp = new Parse.Query(Setting);
+        qDisp.equalTo("type", "disposal");
+        qDisp.equalTo("active", true);
+        qDisp.ascending("order").addAscending("name");
+        const dispList = await qDisp.find();
+
+        if (!alive) return;
+        setDispositionOpts(dispList.map((o) => o.get("name")).filter(Boolean));
+      } catch (e) {
         // keep defaults silently
+        console.error(e);
       }
     })();
+
     return () => {
       alive = false;
     };
@@ -205,17 +215,20 @@ export default function BasicTab({ control }: Props) {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Controller
-            name={"condition" as any}
+            name="condition"
             control={control}
             render={({ field }) => (
               <Autocomplete<string, false, false, true>
                 freeSolo
+                forcePopupIcon={true}
+                popupIcon={<ArrowDropDownIcon />}
                 options={conditionOpts}
-                value={field.value ? String(field.value) : null}
+                inputValue={field.value ?? ""}
                 onInputChange={(_e, v) => field.onChange(v ?? "")}
-                onChange={(_e, v) => field.onChange(v ?? "")}
+                value={null}
+                onChange={() => {}}
                 renderInput={(params) => (
-                  <TextField {...params} label="整備情形" fullWidth />
+                  <TextField {...params} label="代理商" fullWidth />
                 )}
               />
             )}
@@ -276,15 +289,18 @@ export default function BasicTab({ control }: Props) {
 
         <Grid size={{ xs: 12 }}>
           <Controller
-            name={"disposition" as any}
+            name="disposition"
             control={control}
             render={({ field }) => (
               <Autocomplete<string, false, false, true>
                 freeSolo
+                forcePopupIcon={true}
+                popupIcon={<ArrowDropDownIcon />}
                 options={dispositionOpts}
-                value={field.value ? String(field.value) : null}
+                inputValue={field.value ?? ""}
                 onInputChange={(_e, v) => field.onChange(v ?? "")}
-                onChange={(_e, v) => field.onChange(v ?? "")}
+                value={null}
+                onChange={() => {}}
                 renderInput={(params) => (
                   <TextField {...params} label="處置" fullWidth />
                 )}

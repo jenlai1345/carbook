@@ -1,38 +1,39 @@
 import * as React from "react";
-import { Box, TextField, Typography, Grid } from "@mui/material";
+import { Grid, Box, TextField, Typography, MenuItem } from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DATE_TF_PROPS } from "../mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
+import { loadSettingsType } from "@/utils/helpers";
 
 export type OriginalOwnerForm = {
   // 基本
   origOwnerName: string;
   origOwnerIdNo: string;
   origOwnerBirth: string; // YYYY-MM-DD
-  origOwnerPhone: string; // NEW: 原車主電話
+  origOwnerPhone: string;
 
   // 地址
-  origOwnerRegZip: string; // NEW: 戶籍 郵遞區號
-  origOwnerRegAddr: string; // 戶籍地址
-  origOwnerMailZip: string; // NEW: 通訊 郵遞區號
-  origOwnerMailAddr: string; // 通訊地址
+  origOwnerRegZip: string;
+  origOwnerRegAddr: string;
+  origOwnerMailZip: string;
+  origOwnerMailAddr: string;
 
   // 成交資訊
-  origContractDate: string; // NEW: 合約日 YYYY-MM-DD
-  origDealPriceWan: string; // NEW: 成交價（萬）
-  origCommissionWan: string; // NEW: 佣金（萬）
+  origContractDate: string;
+  origDealPriceWan: string;
+  origCommissionWan: string;
 
   // 其他
-  consignorName: string; // 代售人
+  consignorName: string;
   consignorPhone: string;
-  referrerName: string; // 介紹人
+  referrerName: string;
   referrerPhone: string;
   purchasedTransferred: string; // 是/否
-  registeredToName: string; // 過戶名下
-  procurementMethod: string; // 採購方式
-  origOwnerNote: string; // 備註
+  registeredToName: string;
+  procurementMethod: string; // 採購方式（從 DB）
+  origOwnerNote: string;
 };
 
 export default function OriginalOwnerTab({
@@ -43,6 +44,29 @@ export default function OriginalOwnerTab({
   errors: FieldErrors<any>;
 }) {
   const { showMessage } = useCarSnackbar();
+
+  // 採購方式 options 由 DB 載入（Setting.type = "purchaseMethod"）
+  const [procurementMethods, setProcurementMethods] = React.useState<string[]>([
+    "",
+  ]);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const opts = await loadSettingsType("purchaseMethod"); // returns string[]
+        if (!alive) return;
+        setProcurementMethods(["", ...opts.filter(Boolean)]);
+      } catch (e) {
+        console.error("Failed to load purchaseMethod settings:", e);
+        // keep initial blank
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -229,22 +253,16 @@ export default function OriginalOwnerTab({
           />
         </Grid>
 
-        {/* 第六列：買進已過戶 / 過戶名下 / 採購方式 */}
+        {/* 第六列：買進已過戶 / 過戶名下 / 採購方式（DB） */}
         <Grid size={{ xs: 12, md: 3 }}>
           <Controller
             name="purchasedTransferred"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                SelectProps={{ native: true }}
-                label="買進已過戶"
-                fullWidth
-              >
-                <option value=""></option>
-                <option value="是">是</option>
-                <option value="否">否</option>
+              <TextField {...field} select label="買進已過戶" fullWidth>
+                <MenuItem value=""></MenuItem>
+                <MenuItem value="是">是</MenuItem>
+                <MenuItem value="否">否</MenuItem>
               </TextField>
             )}
           />
@@ -263,19 +281,12 @@ export default function OriginalOwnerTab({
             name="procurementMethod"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                SelectProps={{ native: true }}
-                label="採購方式"
-                fullWidth
-              >
-                <option value=""></option>
-                <option value="買斷">買斷</option>
-                <option value="寄售">寄售</option>
-                <option value="置換">置換</option>
-                <option value="拍賣">拍賣</option>
-                <option value="其他">其他</option>
+              <TextField {...field} select label="採購方式" fullWidth>
+                {procurementMethods.map((v) => (
+                  <MenuItem key={v || "__blank"} value={v}>
+                    {v || "（未選）"}
+                  </MenuItem>
+                ))}
               </TextField>
             )}
           />

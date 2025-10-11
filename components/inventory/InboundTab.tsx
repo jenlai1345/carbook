@@ -3,7 +3,6 @@ import {
   Grid,
   Paper,
   TextField,
-  FormControl,
   InputAdornment,
   MenuItem,
 } from "@mui/material";
@@ -11,6 +10,7 @@ import { Controller, Control, FieldErrors } from "react-hook-form";
 import dayjs from "dayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DATE_TF_PROPS } from "@/components/mui";
+import { loadSettingsType } from "@/utils/helpers";
 
 export default function InBoundTab({
   control,
@@ -19,8 +19,35 @@ export default function InBoundTab({
   control: Control<any>;
   errors: FieldErrors<any>;
 }) {
-  const purchaseModes = ["", "一般", "寄賣", "調車", "拍賣", "以車換車"];
-  const changeMethods = ["", "新增", "調價", "備註", "其他"];
+  // options from DB
+  const [purchaseModes, setPurchaseModes] = React.useState<string[]>([""]);
+  const [purchasers, setPurchasers] = React.useState<string[]>([""]);
+  const [changeMethods, setChangeMethods] = React.useState<string[]>([""]);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [importStyleOpts, purchaserOpts, moveMethodOpts] =
+          await Promise.all([
+            loadSettingsType("importStyle"),
+            loadSettingsType("purchaser"),
+            loadSettingsType("moveMethod"),
+          ]);
+
+        if (!alive) return;
+        setPurchaseModes(importStyleOpts);
+        setPurchasers(purchaserOpts);
+        setChangeMethods(moveMethodOpts);
+      } catch (e) {
+        console.error("Load settings failed:", e);
+        // keep initial blank options
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -47,7 +74,7 @@ export default function InBoundTab({
           />
         </Grid>
 
-        {/* 進貨模式 */}
+        {/* 進貨模式（Setting: importStyle） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Controller
             name="inbound.purchaseMode"
@@ -55,7 +82,7 @@ export default function InBoundTab({
             render={({ field }) => (
               <TextField {...field} select label="進貨模式" fullWidth>
                 {purchaseModes.map((v) => (
-                  <MenuItem key={v} value={v}>
+                  <MenuItem key={v || "__blank"} value={v}>
                     {v || "（未選）"}
                   </MenuItem>
                 ))}
@@ -64,13 +91,19 @@ export default function InBoundTab({
           />
         </Grid>
 
-        {/* 採購員 */}
+        {/* 採購員（Setting: purchaser） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Controller
             name="inbound.purchaser"
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="採購員" fullWidth />
+              <TextField {...field} select label="採購員" fullWidth>
+                {purchasers.map((v) => (
+                  <MenuItem key={v || "__blank"} value={v}>
+                    {v || "（未選）"}
+                  </MenuItem>
+                ))}
+              </TextField>
             )}
           />
         </Grid>
@@ -192,7 +225,7 @@ export default function InBoundTab({
           />
         </Grid>
 
-        {/* 異動方式 */}
+        {/* 異動方式（Setting: moveMethod） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Controller
             name="inbound.changeMethod"
@@ -200,7 +233,7 @@ export default function InBoundTab({
             render={({ field }) => (
               <TextField {...field} select label="異動方式" fullWidth>
                 {changeMethods.map((v) => (
-                  <MenuItem key={v} value={v}>
+                  <MenuItem key={v || "__blank"} value={v}>
                     {v || "（未選）"}
                   </MenuItem>
                 ))}

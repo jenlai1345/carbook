@@ -157,3 +157,15 @@ export { toDateInput };
 /** Keep existing API: coerce unknown into a date string (YYYY-MM-DD) or "" */
 export const toDateStr = (x: unknown): string =>
   x instanceof Date ? toDateInput(x) : typeof x === "string" ? x : "";
+
+export async function loadSettingsType(type: string): Promise<string[]> {
+  const Setting = Parse.Object.extend("Setting");
+  const q = new Parse.Query(Setting);
+  q.equalTo("type", type);
+  q.equalTo("active", true);
+  q.ascending("order").addAscending("name");
+  const list = await q.find();
+  return [""].concat(
+    list.map((o) => String(o.get("name") ?? "")).filter(Boolean)
+  );
+}

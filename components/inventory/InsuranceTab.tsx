@@ -1,6 +1,5 @@
 import * as React from "react";
 import {
-  Grid,
   Paper,
   TextField,
   MenuItem,
@@ -10,11 +9,13 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  Grid,
 } from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
 import dayjs from "dayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DATE_TF_PROPS } from "@/components/mui";
+import { loadSettingsType } from "@/utils/helpers";
 
 export default function InsuranceTab({
   control,
@@ -23,15 +24,38 @@ export default function InsuranceTab({
   control: Control<any>;
   errors: FieldErrors<any>;
 }) {
-  // tweak these lists any time
-  const insuranceTypes = ["", "強制險", "任意險", "第三責任", "車體險", "其他"];
-  const insurers = ["", "新光", "國泰", "富邦", "和泰", "安達", "兆豐", "其他"];
-  const lenders = ["", "和運", "裕融", "中租", "合作金庫", "玉山", "其他"];
+  const [insuranceTypes, setInsuranceTypes] = React.useState<string[]>([""]);
+  const [insurers, setInsurers] = React.useState<string[]>([""]);
+  const [lenders, setLenders] = React.useState<string[]>([""]);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [types, companies, loaners] = await Promise.all([
+          loadSettingsType("insuranceType"),
+          loadSettingsType("insuranceCompany"),
+          loadSettingsType("loanCompany"),
+        ]);
+
+        if (!alive) return;
+        setInsuranceTypes(["", ...types.filter(Boolean)]);
+        setInsurers(["", ...companies.filter(Boolean)]);
+        setLenders(["", ...loaners.filter(Boolean)]);
+      } catch (e) {
+        console.error("Failed to load insurance settings:", e);
+        // keep initial blanks silently
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Grid container spacing={2}>
-        {/* 保險類別 */}
+        {/* 保險類別（Setting: insuranceType） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Controller
             name="insurance.insuranceType"
@@ -39,7 +63,7 @@ export default function InsuranceTab({
             render={({ field }) => (
               <TextField {...field} label="保險類別" select fullWidth>
                 {insuranceTypes.map((v) => (
-                  <MenuItem key={v} value={v}>
+                  <MenuItem key={v || "__blank"} value={v}>
                     {v || "（未選）"}
                   </MenuItem>
                 ))}
@@ -66,7 +90,7 @@ export default function InsuranceTab({
           />
         </Grid>
 
-        {/* 保險公司 */}
+        {/* 保險公司（Setting: insuranceCompany） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Controller
             name="insurance.insuranceCompany"
@@ -74,7 +98,7 @@ export default function InsuranceTab({
             render={({ field }) => (
               <TextField {...field} label="保險公司" select fullWidth>
                 {insurers.map((v) => (
-                  <MenuItem key={v} value={v}>
+                  <MenuItem key={v || "__blank"} value={v}>
                     {v || "（未選）"}
                   </MenuItem>
                 ))}
@@ -83,7 +107,7 @@ export default function InsuranceTab({
           />
         </Grid>
 
-        {/* 貸款公司 */}
+        {/* 貸款公司（Setting: loanCompany） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Controller
             name="insurance.loanCompany"
@@ -91,7 +115,7 @@ export default function InsuranceTab({
             render={({ field }) => (
               <TextField {...field} label="貸款公司" select fullWidth>
                 {lenders.map((v) => (
-                  <MenuItem key={v} value={v}>
+                  <MenuItem key={v || "__blank"} value={v}>
                     {v || "（未選）"}
                   </MenuItem>
                 ))}
