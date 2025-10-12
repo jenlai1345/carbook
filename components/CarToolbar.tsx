@@ -82,20 +82,6 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
       }}
     >
       <Toolbar sx={{ minHeight: 64, gap: 1 }}>
-        {/* Left: logo (optional) */}
-        {logo && (
-          <NextLink href={logoUrl} legacyBehavior passHref>
-            <IconButton
-              component="a"
-              color="inherit"
-              edge="start"
-              sx={{ mr: 1 }}
-            >
-              {logo}
-            </IconButton>
-          </NextLink>
-        )}
-
         {/* Middle: breadcrumbs */}
         <Breadcrumbs
           aria-label="breadcrumb"
@@ -182,40 +168,6 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
               >
                 {userTitle}
               </Typography>
-            )}
-
-            {/* Vertical divider */}
-            <Box
-              sx={{
-                width: 1,
-                height: 24,
-                bgcolor: "grey.700",
-                borderRadius: 0.5,
-                mx: 0.5,
-              }}
-            />
-
-            {/* Logo image (contain, not cropped) */}
-            {userLogoUrl && (
-              <Box
-                component="img"
-                src={userLogoUrl}
-                alt="logo"
-                onError={(e: any) => {
-                  // hide if broken
-                  e.currentTarget.style.display = "none";
-                }}
-                sx={{
-                  height: 32, // tweak to 28/36 to taste
-                  width: "auto",
-                  objectFit: "contain",
-                  display: "block",
-                  // Optional: keep a clean “chip” behind the logo for contrast
-                  // p: 0.5,
-                  // bgcolor: "common.white",
-                  // borderRadius: 1,
-                }}
-              />
             )}
 
             {/* Logout */}
