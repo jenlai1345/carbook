@@ -111,6 +111,7 @@ export default function SettingsPage() {
     try {
       if (isBrand) {
         const q = new Parse.Query("Brand");
+        q.equalTo("owner", Parse.User.current());
         q.ascending("name");
         const list = await q.find();
         setRows(
@@ -123,6 +124,7 @@ export default function SettingsPage() {
         );
       } else {
         const q = new Parse.Query("Setting");
+        q.equalTo("owner", Parse.User.current());
         q.equalTo("type", current);
         // ✅ 正確的多欄位排序
         q.ascending("order").addAscending("createdAt");

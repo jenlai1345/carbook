@@ -20,6 +20,7 @@ export type Option = { id: string; name: string };
 
 export async function ensureBrandByName(name: string): Promise<string> {
   const q = new Parse.Query("Brand");
+  q.equalTo("owner", Parse.User.current());
   q.equalTo("name", name.trim());
   const exist = await q.first();
   if (exist) return exist.id ?? "";
@@ -163,6 +164,7 @@ export async function loadSettingsType(type: string): Promise<string[]> {
   const q = new Parse.Query(Setting);
   q.equalTo("type", type);
   q.equalTo("active", true);
+  q.equalTo("owner", Parse.User.current());
   q.ascending("order").addAscending("name");
   const list = await q.find();
   return [""].concat(

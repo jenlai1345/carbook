@@ -32,6 +32,7 @@ export default function BasicTab({ control }: Props) {
 
         // 整備情形
         const qCond = new Parse.Query(Setting);
+        qCond.equalTo("owner", Parse.User.current());
         qCond.equalTo("type", "reconditionStatus");
         qCond.equalTo("active", true);
         qCond.ascending("order").addAscending("name");

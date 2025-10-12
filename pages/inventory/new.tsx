@@ -13,10 +13,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useRouter } from "next/router";
-
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-
 import Parse from "../../lib/parseClient";
 import CarToolbar from "@/components/CarToolbar";
 import {
@@ -59,6 +57,7 @@ import FeeTab from "@/components/FeeTab";
 import DocumentTab from "@/components/inventory/DocumentTab";
 import InBoundTab from "@/components/inventory/InboundTab";
 import InsuranceTab from "@/components/inventory/InsuranceTab";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
 export default function InventoryNewPage() {
   return (
@@ -223,8 +222,9 @@ function InventoryNewContent() {
     let active = true;
     (async () => {
       const q = new Parse.Query("Brand");
+      q.equalTo("owner", Parse.User.current());
       if (debBrand) q.matches("name", debBrand, "i");
-      q.ascending("name").limit(20);
+      q.ascending("name");
       const r = await q.find();
       if (active) {
         const arr = r
@@ -935,6 +935,8 @@ function InventoryNewContent() {
                 render={({ field }) => (
                   <Autocomplete
                     freeSolo
+                    forcePopupIcon={true}
+                    popupIcon={<ArrowDropDownIcon />}
                     options={brandOpts}
                     getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
                     value={brandValue as any}
