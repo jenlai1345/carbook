@@ -33,6 +33,7 @@ import CarToolbar from "@/components/CarToolbar";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { zhTW as pickersZhTW } from "@mui/x-date-pickers/locales";
+import { upsertBrand, upsertSetting } from "./api/settingsUpserts";
 
 // --------- 類型定義與對應 ---------
 type CategoryKey =
@@ -117,7 +118,7 @@ export default function SettingsPage() {
             id: o.id!,
             name: o.get("name") ?? "",
             order: null,
-            active: true,
+            active: o.get("active") ?? true, // ← read active
           }))
         );
       } else {
@@ -131,7 +132,7 @@ export default function SettingsPage() {
             id: o.id!,
             name: o.get("name") ?? "",
             order: o.get("order") ?? null,
-            active: o.get("active") ?? true,
+            active: o.get("active") ?? true, // ← read active
           }))
         );
       }
@@ -159,26 +160,13 @@ export default function SettingsPage() {
       }
 
       if (isBrand) {
-        const Brand = Parse.Object.extend("Brand");
-        const obj = new Brand();
-        if (editingId) obj.id = editingId;
-        obj.set("name", name);
-        await obj.save();
+        await upsertBrand(name);
       } else {
-        const Setting = Parse.Object.extend("Setting");
-        let obj: Parse.Object;
-        if (editingId) {
-          obj = new Setting();
-          obj.id = editingId;
-        } else {
-          obj = new Setting();
-          obj.set("type", current);
-        }
-        obj.set("name", name);
-        if (data.order !== "" && data.order !== undefined)
-          obj.set("order", Number(data.order));
-        if (typeof data.active === "boolean") obj.set("active", data.active);
-        await obj.save();
+        const orderNum =
+          data.order !== "" && data.order !== undefined
+            ? Number(data.order)
+            : undefined;
+        await upsertSetting(current, name, orderNum);
       }
 
       await load();
@@ -205,12 +193,14 @@ export default function SettingsPage() {
         const Brand = Parse.Object.extend("Brand");
         const obj = new Brand();
         obj.id = id;
-        await obj.destroy();
+        obj.set("active", false); // ✅ soft delete
+        await obj.save(null, { useMasterKey: false });
       } else {
         const Setting = Parse.Object.extend("Setting");
         const obj = new Setting();
         obj.id = id;
-        await obj.destroy();
+        obj.set("active", false); // ✅ soft delete
+        await obj.save(null, { useMasterKey: false });
       }
       await load();
     } catch (e) {
