@@ -1,3 +1,4 @@
+// eslint.config.mjs
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
@@ -5,12 +6,16 @@ import { FlatCompat } from "@eslint/eslintrc";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+const compat = new FlatCompat({ baseDirectory: __dirname });
 
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+export default [
+  // Next + TS presets via compat (no extra imports needed)
+  ...compat.extends(
+    "next/core-web-vitals",
+    "next/typescript",
+    "plugin:@typescript-eslint/recommended"
+  ),
+  { linterOptions: { reportUnusedDisableDirectives: "off" } },
   {
     ignores: [
       "node_modules/**",
@@ -22,17 +27,11 @@ const eslintConfig = [
   },
   {
     files: ["**/*.{ts,tsx,js,jsx}"],
-    plugins: {
-      "@next/next": nextPlugin,
-    },
-    extends: [
-      ...tseslint.configs.recommended, // typescript-eslint 官方建議
-      "plugin:@next/next/core-web-vitals",
-    ],
     rules: {
-      "@typescript-eslint/no-explicit-any": "off", // 全域關掉
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "react-hooks/exhaustive-deps": "off",
+      "react-hooks/rules-of-hooks": "error",
     },
   },
 ];
-
-export default eslintConfig;

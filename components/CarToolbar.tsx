@@ -24,8 +24,6 @@ export interface BreadcrumbItem {
 
 export interface HLToolbarProps {
   breadcrumbs: BreadcrumbItem[]; // e.g. [{label:'首頁', href:'/dashboard', showHomeIcon:true}, {label:'新增車籍'}]
-  logo?: React.ReactNode; // optional: left-most logo node
-  logoHref?: string; // click logo to navigate
   rightSlot?: React.ReactNode; // optional: put buttons on the right (before user badge)
   sx?: SxProps<Theme>; // style override for AppBar
 }
@@ -34,16 +32,11 @@ const toUrlObject = (href: string): UrlObject => ({ pathname: href });
 
 const CarToolbar: React.FC<HLToolbarProps> = ({
   breadcrumbs,
-  logoHref = "/",
   rightSlot,
   sx,
 }) => {
-  const logoUrl: UrlObject = toUrlObject(logoHref);
-
   const [userTitle, setUserTitle] = React.useState<string>("");
-  const [userLogoUrl, setUserLogoUrl] = React.useState<string>("");
   const [hasUser, setHasUser] = React.useState<boolean>(false);
-  const [logo, setLogo] = React.useState<Parse.File | null>();
 
   React.useEffect(() => {
     const init = async () => {
@@ -54,7 +47,6 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
       }
       setHasUser(true);
       setUserTitle(user.get("title") || "");
-      setUserLogoUrl(user.get("logo") ?? null);
     };
     void init();
   }, []);
@@ -110,7 +102,6 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
                 {bc.label}
               </>
             );
-
             const isLast = i === breadcrumbs.length - 1;
 
             if (!isLast && bc.href) {
@@ -140,8 +131,8 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
         {/* Optional right-side slot (e.g., buttons) */}
         {rightSlot && <Box sx={{ ml: 1 }}>{rightSlot}</Box>}
 
-        {/* User title + logo + logout (far right) */}
-        {(hasUser || userTitle || userLogoUrl) && (
+        {/* Dealer name → /account + Logout */}
+        {(hasUser || userTitle) && (
           <Box
             sx={{
               ml: 3,
@@ -151,26 +142,38 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
               flexShrink: 0,
             }}
           >
-            {/* Title same style as “首頁” */}
-            {userTitle && (
-              <Typography
-                sx={{
-                  color: "inherit",
-                  fontSize: 18,
-                  fontWeight: 600,
-                  lineHeight: 1.8,
-                  whiteSpace: "nowrap",
-                  maxWidth: 220,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-                title={userTitle}
-              >
-                {userTitle}
-              </Typography>
+            {userTitle ? (
+              <NextLink href="/account" legacyBehavior passHref>
+                <MuiLink
+                  underline="hover"
+                  sx={{
+                    color: "inherit",
+                    fontSize: 18,
+                    fontWeight: 600,
+                    lineHeight: 1.8,
+                    whiteSpace: "nowrap",
+                    maxWidth: 240,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    cursor: "pointer",
+                    "&:hover": { color: "grey.200" },
+                  }}
+                  title={userTitle}
+                >
+                  {userTitle}
+                </MuiLink>
+              </NextLink>
+            ) : (
+              <NextLink href="/account" legacyBehavior passHref>
+                <MuiLink
+                  underline="hover"
+                  sx={{ color: "inherit", fontSize: 16, fontWeight: 600 }}
+                >
+                  帳戶
+                </MuiLink>
+              </NextLink>
             )}
 
-            {/* Logout */}
             <Button
               color="inherit"
               size="small"
