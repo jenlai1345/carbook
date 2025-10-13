@@ -20,34 +20,47 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { Eye, EyeOff, CarFront, ShieldCheck } from "lucide-react";
+import { Snackbar } from "@mui/material";
 
 /** Brand color (tweak if you want) */
-const HL_BLUE = "#1e88e5";
+const CARBOOK_BLUE = "#1e88e5";
 
 /** Unified pill Input styles (no floating label used) */
 const PILL_INPUT_SX = {
-  color: "#fff",
+  // Input text + placeholder → black
+  "& .MuiOutlinedInput-input": {
+    color: "#000",
+    "::placeholder": { color: "rgba(0,0,0,0.55)", opacity: 1 },
+    py: 1.8,
+    px: 2.2,
+    fontSize: 18,
+  },
+
   "& .MuiOutlinedInput-root": {
     borderRadius: 9999,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#fff", // light field so black text has contrast
     "& .MuiOutlinedInput-notchedOutline": {
-      borderColor: "rgba(255,255,255,0.24)",
+      borderColor: "rgba(0,0,0,0.20)",
     },
     "&:hover .MuiOutlinedInput-notchedOutline": {
-      borderColor: "rgba(255,255,255,0.42)",
+      borderColor: "rgba(0,0,0,0.40)",
     },
     "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-      borderColor: HL_BLUE,
+      borderColor: CARBOOK_BLUE,
       borderWidth: 2,
     },
-    // Autofill fix
+
+    // Autofill fix → keep black text on white bg
     "& input:-webkit-autofill": {
-      WebkitBoxShadow: "0 0 0 1000px rgba(255,255,255,0.08) inset",
-      WebkitTextFillColor: "#fff",
-      caretColor: "#fff",
+      WebkitBoxShadow: "0 0 0 1000px #fff inset",
+      WebkitTextFillColor: "#000",
+      caretColor: "#000",
     },
-    // Height like your screenshot
-    "& .MuiOutlinedInput-input": { py: 1.8, px: 2.2, fontSize: 18 },
+
+    // Adornment/icon color (e.g., eye/eye-off) → dark
+    "& .MuiInputAdornment-root .MuiIconButton-root": {
+      color: "rgba(0,0,0,0.7)",
+    },
   },
 } as const;
 
@@ -85,6 +98,12 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [snack, setSnack] = useState<string | null>(null);
+  const [snackSeverity, setSnackSeverity] = useState<
+    "success" | "error" | "info"
+  >("info");
+
+  const [forgetLoading, setForgetLoading] = useState(false);
 
   useEffect(() => {
     const last = localStorage.getItem("carbook:lastUsername");
@@ -110,6 +129,29 @@ export default function LoginPage() {
     }
   }
 
+  async function handleForgot() {
+    const email = username.trim();
+    const looksLikeEmail = /\S+@\S+\.\S+/.test(email);
+
+    if (!email || !looksLikeEmail) {
+      setSnackSeverity("info");
+      setSnack("請在「帳號」欄位輸入 Email 才能寄送重設連結");
+      return;
+    }
+
+    try {
+      setForgetLoading(true);
+      await Parse.User.requestPasswordReset(email);
+      setSnackSeverity("success");
+      setSnack("已寄出重設密碼連結，請查收信箱。");
+    } catch (e: any) {
+      setSnackSeverity("error");
+      setSnack(e?.message ?? "送出失敗，請稍後再試。");
+    } finally {
+      setForgetLoading(false);
+    }
+  }
+
   return (
     <Box
       sx={{
@@ -117,7 +159,7 @@ export default function LoginPage() {
         display: "grid",
         gridTemplateColumns: { xs: "1fr", md: "1.05fr 0.95fr" },
         background:
-          `radial-gradient(1200px 600px at -10% -20%, ${HL_BLUE}26 0%, ${HL_BLUE}0D 60%, transparent 100%),` +
+          `radial-gradient(1200px 600px at -10% -20%, ${CARBOOK_BLUE}26 0%, ${CARBOOK_BLUE}0D 60%, transparent 100%),` +
           `radial-gradient(900px 500px at 110% 120%, #9c27b01a 0%, #9c27b00a 60%, transparent 100%),` +
           "linear-gradient(120deg, #0f172a 0%, #0b1022 100%)",
         color: "#fff",
@@ -170,7 +212,7 @@ export default function LoginPage() {
                 borderRadius: "12px",
                 display: "grid",
                 placeItems: "center",
-                background: `linear-gradient(135deg, ${HL_BLUE}e6, #7c4dffe6)`,
+                background: `linear-gradient(135deg, ${CARBOOK_BLUE}e6, #7c4dffe6)`,
                 boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
               }}
             >
@@ -249,14 +291,23 @@ export default function LoginPage() {
                 }
                 label="記住帳號"
               />
-              <Link
-                href="#"
-                underline="hover"
-                sx={{ color: "#90caf9", fontSize: 14 }}
-                onClick={(e) => e.preventDefault()}
+              <Button
+                onClick={handleForgot}
+                variant="text"
+                disabled={forgetLoading}
+                sx={{
+                  color: "#90caf9",
+                  textTransform: "none",
+                  p: 0,
+                  minWidth: 0,
+                  gap: 1,
+                }}
               >
-                忘記密碼？
-              </Link>
+                {forgetLoading && (
+                  <CircularProgress size={16} sx={{ color: "#90caf9" }} />
+                )}
+                {forgetLoading ? "寄送中…" : "忘記密碼？"}
+              </Button>
             </Box>
 
             {error && (
@@ -285,8 +336,8 @@ export default function LoginPage() {
                 fontWeight: 800,
                 letterSpacing: 0.4,
                 borderRadius: 2,
-                boxShadow: `0 10px 22px ${HL_BLUE}66`,
-                background: `linear-gradient(135deg, ${HL_BLUE} 0%, #7c4dff 100%)`,
+                boxShadow: `0 10px 22px ${CARBOOK_BLUE}66`,
+                background: `linear-gradient(135deg, ${CARBOOK_BLUE} 0%, #7c4dff 100%)`,
               }}
               fullWidth
             >
@@ -307,11 +358,29 @@ export default function LoginPage() {
               <Typography variant="body2" sx={{ opacity: 0.8 }}>
                 沒有帳號？
               </Typography>
-              <Link href="#" underline="hover" sx={{ color: "#9fa8da" }}>
+              <Link
+                href="mailto:carbook5858@gmail.com?subject=帳號申請/協助&body=您好，我需要協助開通帳號。"
+                underline="hover"
+                sx={{ color: "#9fa8da" }}
+              >
                 聯絡管理員
               </Link>
             </Box>
           </Box>
+          <Snackbar
+            open={!!snack}
+            autoHideDuration={3800}
+            onClose={() => setSnack(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          >
+            <Alert
+              onClose={() => setSnack(null)}
+              severity={snackSeverity}
+              sx={{ width: "100%" }}
+            >
+              {snack}
+            </Alert>
+          </Snackbar>
         </Paper>
       </Container>
     </Box>
@@ -319,7 +388,7 @@ export default function LoginPage() {
 }
 
 function HeroIllustrationMinimal() {
-  const HL_BLUE = "#1e88e5";
+  const CARBOOK_BLUE = "#1e88e5";
   return (
     <Box
       aria-hidden
@@ -345,7 +414,7 @@ function HeroIllustrationMinimal() {
       >
         <defs>
           <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={HL_BLUE} stopOpacity="0.95" />
+            <stop offset="0%" stopColor={CARBOOK_BLUE} stopOpacity="0.95" />
             <stop offset="100%" stopColor="#7c4dff" stopOpacity="0.95" />
           </linearGradient>
           <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
