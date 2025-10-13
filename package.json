@@ -17,6 +17,7 @@
     "@mui/styles": "^6.5.0",
     "@mui/x-date-pickers": "^8.12.0",
     "dayjs": "^1.11.18",
+    "lucide-react": "^0.545.0",
     "next": "^15.5.4",
     "parse": "^6.1.1",
     "react": "^19.1.0",
