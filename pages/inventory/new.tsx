@@ -602,13 +602,18 @@ function InventoryNewContent() {
 
     // optional: scope by user
     const u = Parse.User.current();
-    if (u) car.set("user", u);
+    if (u) car.set("owner", u);
 
     // default status on create
     if (!carId) car.set("status", "active");
 
+    if (tab === BASIC_TAB_INDEX) {
+      await car.save();
+      showMessage(carId ? "✅ 基本資料已更新" : "✅ 車輛已建立");
+      return;
+    }
     // Tabs 3 / 5: save Owner pointers (unchanged)
-    if (tab === ORIGINAL_OWNER_TAB_INDEX) {
+    else if (tab === ORIGINAL_OWNER_TAB_INDEX) {
       const Owner = Parse.Object.extend("Owner");
       const owner = origOwnerId
         ? Owner.createWithoutData(origOwnerId)
@@ -640,7 +645,7 @@ function InventoryNewContent() {
         v.origCommissionWan ? Number(v.origCommissionWan) : null
       );
       owner.set("phone", v.origOwnerPhone || null);
-      if (u) owner.set("user", u);
+      if (u) owner.set("owner", u);
 
       await owner.save();
       car.set("originalOwner", owner);
@@ -772,7 +777,7 @@ function InventoryNewContent() {
       buyer.set("salesMode", v.salesMode || null);
       buyer.set("preferredShop", v.preferredShop || null);
       buyer.set("note", v.newOwnerNote || null);
-      if (u) buyer.set("user", u);
+      if (u) buyer.set("owner", u);
 
       await buyer.save();
       car.set("newOwner", buyer);

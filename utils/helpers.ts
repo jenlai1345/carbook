@@ -92,7 +92,7 @@ export async function fetchCars(): Promise<Car[]> {
   const CarClass = Parse.Object.extend("Car");
   const q = new Parse.Query(CarClass);
   const currentUser = Parse.User.current();
-  if (currentUser) q.equalTo("user", currentUser);
+  if (currentUser) q.equalTo("owner", currentUser);
   q.limit(1000);
   q.include(["brand"]); // resolve pointer names
 
