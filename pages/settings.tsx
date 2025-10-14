@@ -34,7 +34,8 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { zhTW as pickersZhTW } from "@mui/x-date-pickers/locales";
 import { upsertBrand, upsertSetting } from "./api/settingsUpserts";
 import { getParse } from "../lib/parseClient";
-
+import Parse from "../lib/parseClient";
+type PUser = Parse.User<Parse.Attributes>;
 // --------- 類型定義與對應 ---------
 type CategoryKey =
   | "brand"
@@ -99,7 +100,7 @@ export default function SettingsPage() {
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
   // 取得目前使用者（client-only）
-  const [user, setUser] = React.useState<Parse.User | null>(null);
+  const [user, setUser] = React.useState<PUser | null>(null);
   const [userReady, setUserReady] = React.useState(false);
 
   const { control, handleSubmit, reset, setValue } = useForm<FormValues>({
@@ -116,8 +117,9 @@ export default function SettingsPage() {
 
     (async () => {
       try {
-        const u = await Parse.User.currentAsync();
-        if (alive) setUser(u ?? null);
+        const Parse = getParse();
+        const u = (await Parse.User.currentAsync()) as PUser | null;
+        setUser(u);
       } finally {
         if (alive) setUserReady(true);
       }
