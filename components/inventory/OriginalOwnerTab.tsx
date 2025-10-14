@@ -1,6 +1,12 @@
 import * as React from "react";
 import { Grid, Box, TextField, Typography, MenuItem } from "@mui/material";
-import { Controller, Control, FieldErrors } from "react-hook-form";
+import {
+  Controller,
+  Control,
+  FieldErrors,
+  useFormContext,
+  useWatch,
+} from "react-hook-form";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DATE_TF_PROPS } from "../mui";
@@ -31,7 +37,7 @@ export type OriginalOwnerForm = {
   referrerName: string;
   referrerPhone: string;
   purchasedTransferred: string; // 是/否
-  registeredToName: string;
+  registeredToName: string; // ← 過戶名下（要自 DB 帶入）
   procurementMethod: string; // 採購方式（從 DB）
   origOwnerNote: string;
 };
@@ -45,10 +51,23 @@ export default function OriginalOwnerTab({
 }) {
   const { showMessage } = useCarSnackbar();
 
+  // 取用父層的 setValue/getValues（需要外層用 FormProvider 包住）
+  const { setValue, getValues } = useFormContext();
+
   // 採購方式 options 由 DB 載入（Setting.type = "purchaseMethod"）
   const [procurementMethods, setProcurementMethods] = React.useState<string[]>([
     "",
   ]);
+
+  // 「過戶名下」預設值（來自 Setting -> registeredToName）
+  const [registeredToNameDefault, setRegisteredToNameDefault] =
+    React.useState<string>("");
+
+  // 監看目前表單的 registeredToName（避免重複覆蓋使用者已輸入值）
+  const currentRegisteredToName = useWatch({
+    control,
+    name: "registeredToName",
+  });
 
   React.useEffect(() => {
     let alive = true;
@@ -59,13 +78,41 @@ export default function OriginalOwnerTab({
         setProcurementMethods(["", ...opts.filter(Boolean)]);
       } catch (e) {
         console.error("Failed to load purchaseMethod settings:", e);
-        // keep initial blank
       }
     })();
     return () => {
       alive = false;
     };
   }, []);
+
+  // 讀取 Setting -> registeredToName，並在欄位尚未有值時帶入
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const names = await loadSettingsType("registeredToName"); // e.g. ["大瑋汽車"] 或多個；取第一個非空
+        if (!alive) return;
+
+        const firstNonEmpty =
+          (names || []).find((s) => !!s?.trim())?.trim() ?? "";
+        setRegisteredToNameDefault(firstNonEmpty);
+
+        // 若表單目前沒有值，才寫入預設值（避免覆蓋使用者的手動輸入）
+        const current = getValues?.("registeredToName");
+        if (!current && firstNonEmpty) {
+          setValue?.("registeredToName", firstNonEmpty, {
+            shouldDirty: false,
+            shouldValidate: true,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to load Setting -> registeredToName:", e);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [getValues, setValue]);
 
   return (
     <Box sx={{ p: 2 }}>
@@ -272,7 +319,16 @@ export default function OriginalOwnerTab({
             name="registeredToName"
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="過戶名下" fullWidth />
+              <TextField
+                {...field}
+                label="過戶名下"
+                fullWidth
+                helperText={
+                  !currentRegisteredToName && registeredToNameDefault
+                    ? `已自動帶入設定值：${registeredToNameDefault}`
+                    : undefined
+                }
+              />
             )}
           />
         </Grid>
