@@ -110,38 +110,99 @@ export default function LoginPage() {
     if (last) setUsername(last);
   }, []);
 
-  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const user = await Parse.User.logIn(username.trim(), password);
-      if (user) {
-        if (remember)
-          localStorage.setItem("carbook:lastUsername", username.trim());
-        else localStorage.removeItem("carbook:lastUsername");
-        router.push("/dashboard");
-      }
-    } catch (err: any) {
-      // 盡量把真實錯誤丟到 UI（便於你查 Back4App logs 對照）
-      const code = err?.code;
-      const msg = err?.message || "Login failed";
-      // 101: Invalid username/password
-      if (code === 101) {
-        setError("帳號或密碼錯誤");
-      } else if (code === 209) {
-        // Invalid session token → 清掉本機 session 再提示
-        await Parse.User.logOut().catch(() => {});
-        setError("登入狀態已失效，請重新登入。");
-      } else {
-        setError(`(${code ?? "?"}) ${msg}`);
-        // 也印到 console 方便你到 Back4App Cloud Code logs 交叉比對
-        console.error("[Login] Parse login error:", err);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
+ async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+   e.preventDefault();
+   setLoading(true);
+   setError(null);
+
+   const u = username.trim();
+   const p = password;
+
+   try {
+     // Primary path: normal SDK login
+     const user = await Parse.User.logIn(u, p);
+     if (user) {
+       if (remember) localStorage.setItem("carbook:lastUsername", u);
+       else localStorage.removeItem("carbook:lastUsername");
+       router.push("/dashboard");
+       return;
+     }
+   } catch (err: any) {
+     // If this is the prod-only bug: TypeError ... (reading 'length'), do REST fallback
+     const looksLikeLengthBug =
+       err instanceof TypeError &&
+       /reading 'length'/.test(String(err?.message || ""));
+
+     if (looksLikeLengthBug) {
+       try {
+         // --- REST fallback (GET /login) ---
+         // Ensure your parseClient exports these or read from env
+         const appId =
+           (Parse as any)._getApplicationId?.() || Parse.applicationId;
+         const jsKey =
+           (Parse as any)._getJavascriptKey?.() || (Parse as any).javaScriptKey;
+         const serverURL =
+           (Parse as any)._getServerURL?.() || (Parse as any).serverURL || "";
+
+         const base = serverURL.replace(/\/$/, "");
+         const url =
+           `${base}/login?username=${encodeURIComponent(u)}` +
+           `&password=${encodeURIComponent(p)}`;
+
+         const resp = await fetch(url, {
+           method: "GET",
+           headers: {
+             "X-Parse-Application-Id": appId,
+             "X-Parse-JavaScript-Key": jsKey,
+             "Content-Type": "application/json",
+           },
+         });
+
+         if (!resp.ok) {
+           // surface server error nicely
+           const data = await resp.json().catch(() => ({}));
+           const code = data?.code;
+           const message = data?.error || `HTTP ${resp.status}`;
+           if (code === 101) {
+             setError("帳號或密碼錯誤");
+           } else {
+             setError(`(${code ?? "?"}) ${message}`);
+           }
+           return;
+         }
+
+         const data = await resp.json();
+         const token = data?.sessionToken;
+         if (!token) throw new Error("Missing sessionToken from REST login");
+
+         // Adopt the session in the SDK so the rest of your app keeps working normally
+         await Parse.User.become(token);
+
+         if (remember) localStorage.setItem("carbook:lastUsername", u);
+         else localStorage.removeItem("carbook:lastUsername");
+         router.push("/dashboard");
+         return;
+       } catch (restErr: any) {
+         console.error("[Login] REST fallback failed:", restErr);
+         // fall through to generic error handling below
+       }
+     }
+
+     // Normal error handling (wrong password, invalid session, etc.)
+     const code = err?.code;
+     if (code === 101) {
+       setError("帳號或密碼錯誤");
+     } else if (code === 209) {
+       await Parse.User.logOut().catch(() => {});
+       setError("登入狀態已失效，請重新登入。");
+     } else {
+       setError(`(${code ?? "?"}) ${err?.message || "Login failed"}`);
+     }
+   } finally {
+     setLoading(false);
+   }
+ }
+
 
   async function handleForgot() {
     const email = username.trim();

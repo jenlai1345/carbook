@@ -423,15 +423,6 @@ Parse.Cloud.afterLogin(async (request) => {
 
 
 
-
-
-
-
-
-
-
-
-
 Parse.Cloud.beforeSave("Brand", async (req) => {
   const o = req.object;
   const user = req.user || o.get("owner");
