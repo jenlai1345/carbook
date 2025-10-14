@@ -283,43 +283,154 @@ function mkKey(s) {
     .replace(/\s+/g, " ");
 }
 
+// ─── 安全版 hasAny：用 count() + try/catch ─────────────────────────────────────
+const hasAny = async (className, where = {}) => {
+  try {
+    const q = new Parse.Query(className);
+    for (const [k, v] of Object.entries(where)) q.equalTo(k, v);
+    const n = await q.count({ useMasterKey: true });
+    return n > 0;
+  } catch (err) {
+    console.error(`[hasAny] ${className} failed:`, err);
+    // 把錯誤吞掉，避免影響 login；回傳 false 表示「當作沒有資料」
+    return false;
+  }
+};
+
+// ─── createExampleCarForUser：用 count() 並包 try/catch ─────────────────────────
 async function createExampleCarForUser(user) {
-  const Car = Parse.Object.extend("Car"); // ⬅️ change to your class name if different (e.g., "Vehicle")
+  try {
+    const Car = Parse.Object.extend("Car");
+    const n = await new Parse.Query(Car)
+      .equalTo("owner", user)
+      .count({ useMasterKey: true });
+    if (n > 0) return;
 
-  // Skip if user already has at least one car
-  const hasAny = await new Parse.Query(Car)
-    .equalTo("owner", user)
-    .limit(1)
-    .find({ useMasterKey: true });
-  if (hasAny.length > 0) return;
+    const toyota = await getOrCreateToyotaFor(user).catch((e) => {
+      console.error("[createExampleCarForUser] getOrCreateToyotaFor:", e);
+      return null;
+    });
 
-  // Optional: get Toyota brand pointer
-  const toyota = await getOrCreateToyotaFor(user);
+    const car = new Car();
+    car.set("owner", user);
+    car.set("isExample", true);
+    car.set("model", "(範例)Corolla Cross");
+    car.set("status", "active");
+    car.set("buyPriceWan", 63);
+    car.set("sellPriceWan", 68);
+    car.set("transmission", "A");
+    car.set("inboundDate", "2025-08-12");
+    car.set("color", "白");
+    car.set("engineNo", "SR33BK-248628");
+    car.set("plateNo", "CAR-1688");
+    car.set("displacementCc", 1798);
+    car.set("vin", "JTR20912FG094J");
+    car.set("factoryYM", "2024-06");
+    car.set("style", "SUV");
+    car.set("seriesCategory", "日系");
+    if (toyota) car.set("brand", toyota);
 
-  // Create a simple example car record
-  const car = new Car();
-  car.set("owner", user);
-  car.set("isExample", true);
-  car.set("model", "Corolla Cross（範例）");
-  car.set("status", "active");
-  car.set("buyPriceWan", 63);
-  car.set("sellPriceWan", 68);
-  car.set("transmission", "A");
-  car.set("inboundDate", "2025-08-12");
-  car.set("color", "白");
-  car.set("engineNo", "SR33BK-248628");
-  car.set("plateNo", "CAR-1688");
-  car.set("displacementCc", 1798);
-  car.set("vin", "JTR20912FG094J");
-  car.set("factoryYM", "2024-06");
-  car.set("style", "SUV");
-  car.set("seriesCategory", "日系");
-
-  // If your schema uses a Brand pointer, this is nice-to-have:
-  if (toyota) car.set("brand", toyota); // ⬅️ remove if you don’t have this column
-
-  await car.save(null, { useMasterKey: true });
+    await car.save(null, { useMasterKey: true });
+  } catch (e) {
+    console.error("[createExampleCarForUser] failed:", e);
+  }
 }
+
+async function getOrCreateToyotaFor(user) {
+  try {
+    const sessionToken = user.getSessionToken?.();
+    await Parse.Cloud.run(
+      "upsertBrand",
+      { name: "Toyota" },
+      sessionToken ? { sessionToken } : {}
+    );
+
+    const Brand = Parse.Object.extend("Brand");
+    const toyota = await new Parse.Query(Brand)
+      .equalTo("owner", user)
+      .equalTo("nameKey", "toyota")
+      .first({ useMasterKey: true });
+    return toyota || null;
+  } catch (e) {
+    console.error("[getOrCreateToyotaFor] failed:", e);
+    return null;
+  }
+}
+
+// ─── afterLogin：任何一段出錯都不會中斷整個登入流程 ───────────────────────────
+Parse.Cloud.afterLogin(async (request) => {
+  const user = request.user;
+  if (!user) return;
+
+  // 可用環境變數快速停用 seeding（若要先確認錯誤來源）
+  if (process.env.DISABLE_SEED === "1") {
+    console.log("[afterLogin] Seeding disabled by env");
+    return;
+  }
+
+  try {
+    // brands: seed only if none
+    const hasBrand = await hasAny("Brand", { owner: user });
+    if (!hasBrand) {
+      const sessionToken = user.getSessionToken?.();
+      for (const name of DEFAULTS.brands || []) {
+        try {
+          await Parse.Cloud.run(
+            "upsertBrand",
+            { name },
+            sessionToken ? { sessionToken } : {}
+          );
+        } catch (e) {
+          console.error(`[afterLogin] upsertBrand(${name}) failed:`, e);
+        }
+      }
+    }
+
+    // settings: type-by-type seed only if empty
+    const entries = Object.entries(DEFAULTS.settings || {});
+    for (const [type, list] of entries) {
+      try {
+        const exists = await hasAny("Setting", { owner: user, type });
+        if (exists) continue;
+
+        const arr = Array.isArray(list) ? list : [];
+        const sessionToken = user.getSessionToken?.();
+        let i = 1;
+        for (const name of arr) {
+          try {
+            await Parse.Cloud.run(
+              "upsertSetting",
+              { type, name, order: i++ },
+              sessionToken ? { sessionToken } : {}
+            );
+          } catch (e) {
+            console.error(`[afterLogin] upsertSetting(${type}, ${name}) failed:`, e);
+          }
+        }
+      } catch (e) {
+        console.error(`[afterLogin] seeding type=${type} failed:`, e);
+      }
+    }
+
+    await createExampleCarForUser(user);
+  } catch (e) {
+    console.error("[afterLogin] top-level failed:", e);
+    // 不 throw，避免影響登入
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Parse.Cloud.beforeSave("Brand", async (req) => {
   const o = req.object;
@@ -438,59 +549,3 @@ Parse.Cloud.define("upsertSetting", async (req) => {
   return { id: s.id, revived: false };
 });
 
-Parse.Cloud.afterLogin(async (request) => {
-  const user = request.user;
-  if (!user) return;
-
-  const hasAny = async (className, where) => {
-    const q = new Parse.Query(className);
-    Object.entries(where).forEach(([k, v]) => q.equalTo(k, v));
-    q.limit(1);
-    return (await q.find({ useMasterKey: true })).length > 0;
-  };
-
-  // brands: seed only if none
-  if (!(await hasAny("Brand", { owner: user }))) {
-    for (const name of DEFAULTS.brands) {
-      await Parse.Cloud.run(
-        "upsertBrand",
-        { name },
-        { sessionToken: user.getSessionToken() }
-      );
-    }
-  }
-
-  // each settings type independently: seed only if type is empty
-  for (const [type, list] of Object.entries(DEFAULTS.settings)) {
-    if (await hasAny("Setting", { owner: user, type })) continue;
-    let i = 1;
-    for (const name of list) {
-      await Parse.Cloud.run(
-        "upsertSetting",
-        { type, name, order: i++ },
-        { sessionToken: user.getSessionToken() }
-      );
-    }
-  }
-
-  // ✅ Finally, create one example car if the user has none
-  await createExampleCarForUser(user);
-});
-
-async function getOrCreateToyotaFor(user) {
-  // Ensure Toyota exists (revive or create)
-  await Parse.Cloud.run(
-    "upsertBrand",
-    { name: "Toyota" },
-    { sessionToken: user.getSessionToken() }
-  );
-
-  // Fetch its row (to optionally link as a pointer)
-  const Brand = Parse.Object.extend("Brand");
-  const toyota = await new Parse.Query(Brand)
-    .equalTo("owner", user)
-    .equalTo("nameKey", "toyota")
-    .first({ useMasterKey: true });
-
-  return toyota || null;
-}

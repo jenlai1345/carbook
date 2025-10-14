@@ -123,7 +123,21 @@ export default function LoginPage() {
         router.push("/dashboard");
       }
     } catch (err: any) {
-      setError(err?.message ?? "Login failed");
+      // 盡量把真實錯誤丟到 UI（便於你查 Back4App logs 對照）
+      const code = err?.code;
+      const msg = err?.message || "Login failed";
+      // 101: Invalid username/password
+      if (code === 101) {
+        setError("帳號或密碼錯誤");
+      } else if (code === 209) {
+        // Invalid session token → 清掉本機 session 再提示
+        await Parse.User.logOut().catch(() => {});
+        setError("登入狀態已失效，請重新登入。");
+      } else {
+        setError(`(${code ?? "?"}) ${msg}`);
+        // 也印到 console 方便你到 Back4App Cloud Code logs 交叉比對
+        console.error("[Login] Parse login error:", err);
+      }
     } finally {
       setLoading(false);
     }
