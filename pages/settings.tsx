@@ -27,34 +27,34 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import SaveIcon from "@mui/icons-material/Save";
 import ClearIcon from "@mui/icons-material/Clear";
-import Parse from "../lib/parseClient";
 import { useForm, Controller } from "react-hook-form";
 import CarToolbar from "@/components/CarToolbar";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { zhTW as pickersZhTW } from "@mui/x-date-pickers/locales";
 import { upsertBrand, upsertSetting } from "./api/settingsUpserts";
+import { getParse } from "../lib/parseClient";
 
 // --------- 類型定義與對應 ---------
 type CategoryKey =
-  | "brand" // 廠牌設定 -> Brand 資料表
-  | "importStyle" // 進貨模式設定
-  | "purchaser" // 採購員設定
-  | "purchaseMethod" // 採購方式設定
-  | "moveMethod" // 異動方式設定
-  | "maintenanceShop" // 保養廠設定
-  | "insuranceType" // 保險類別設定
-  | "insuranceCompany" // 保險公司設定
-  | "salesperson" // 銷售員設定
-  | "salesMethod" // 銷售方式設定
-  | "saleStyle" // 銷貨模式設定
-  | "preferredShop" // 特約廠設定
-  | "loanCompany" // 貸款公司設定
-  | "feeItem" // 費用項目設定
-  | "otherFeeItem" // 其它費用項目設定
-  | "reconditionStatus" // 整備情形設定
-  | "disposal" // 處置設定（你要求新增）
-  | "commonEquip"; // 常用配備設定
+  | "brand"
+  | "importStyle"
+  | "purchaser"
+  | "purchaseMethod"
+  | "moveMethod"
+  | "maintenanceShop"
+  | "insuranceType"
+  | "insuranceCompany"
+  | "salesperson"
+  | "salesMethod"
+  | "saleStyle"
+  | "preferredShop"
+  | "loanCompany"
+  | "feeItem"
+  | "otherFeeItem"
+  | "reconditionStatus"
+  | "disposal"
+  | "commonEquip";
 
 const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "brand", label: "廠牌設定" },
@@ -92,12 +92,15 @@ type FormValues = {
   active?: boolean;
 };
 
-// --------- 主頁面 ---------
 export default function SettingsPage() {
   const [current, setCurrent] = React.useState<CategoryKey>("brand");
   const [rows, setRows] = React.useState<SettingRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+
+  // 取得目前使用者（client-only）
+  const [user, setUser] = React.useState<Parse.User | null>(null);
+  const [userReady, setUserReady] = React.useState(false);
 
   const { control, handleSubmit, reset, setValue } = useForm<FormValues>({
     defaultValues: { name: "", order: "", active: true },
@@ -105,48 +108,71 @@ export default function SettingsPage() {
 
   const isBrand = current === "brand";
 
-  // 讀取資料
+  // 只在瀏覽器端初始化並取得使用者
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const Parse = getParse();
+    let alive = true;
+
+    (async () => {
+      try {
+        const u = await Parse.User.currentAsync();
+        if (alive) setUser(u ?? null);
+      } finally {
+        if (alive) setUserReady(true);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 讀取資料（等 userReady + user 才跑）
   const load = React.useCallback(async () => {
+    if (!userReady || !user) return;
+    const sessionToken = user.getSessionToken?.();
+    const Parse = getParse();
+
     setLoading(true);
     try {
       if (isBrand) {
         const q = new Parse.Query("Brand");
-        q.equalTo("owner", Parse.User.current());
+        q.equalTo("owner", user);
         q.ascending("name");
-        const list = await q.find();
+        const list = await q.find({ sessionToken });
         setRows(
           list.map((o) => ({
             id: o.id!,
             name: o.get("name") ?? "",
             order: null,
-            active: o.get("active") ?? true, // ← read active
+            active: o.get("active") ?? true,
           }))
         );
       } else {
         const q = new Parse.Query("Setting");
-        q.equalTo("owner", Parse.User.current());
+        q.equalTo("owner", user);
         q.equalTo("type", current);
-        // ✅ 正確的多欄位排序
         q.ascending("order").addAscending("createdAt");
-        const list = await q.find();
+        const list = await q.find({ sessionToken });
         setRows(
           list.map((o) => ({
             id: o.id!,
             name: o.get("name") ?? "",
             order: o.get("order") ?? null,
-            active: o.get("active") ?? true, // ← read active
+            active: o.get("active") ?? true,
           }))
         );
       }
     } catch (e) {
-      console.error(e);
+      console.error("[Settings] load failed:", e);
       alert("讀取資料發生錯誤");
     } finally {
       setLoading(false);
       setEditingId(null);
       reset({ name: "", order: "", active: true });
     }
-  }, [current, isBrand, reset]);
+  }, [current, isBrand, reset, user, userReady]);
 
   React.useEffect(() => {
     load();
@@ -154,6 +180,7 @@ export default function SettingsPage() {
 
   // 新增或更新
   const onSubmit = handleSubmit(async (data) => {
+    if (!user) return;
     try {
       const name = data.name?.trim();
       if (!name) {
@@ -162,7 +189,7 @@ export default function SettingsPage() {
       }
 
       if (isBrand) {
-        await upsertBrand(name);
+        await upsertBrand(name); // 你自己的 API，內部可用 sessionToken 驗證
       } else {
         const orderNum =
           data.order !== "" && data.order !== undefined
@@ -173,7 +200,7 @@ export default function SettingsPage() {
 
       await load();
     } catch (e) {
-      console.error(e);
+      console.error("[Settings] save failed:", e);
       alert("儲存失敗");
     }
   });
@@ -187,26 +214,30 @@ export default function SettingsPage() {
     setValue("active", !!r.active);
   };
 
-  // 刪除
+  // 刪除（soft delete）
   const remove = async (id: string) => {
+    if (!user) return;
     if (!confirm("確定刪除？")) return;
+    const sessionToken = user.getSessionToken?.();
+    const Parse = getParse();
+
     try {
       if (isBrand) {
         const Brand = Parse.Object.extend("Brand");
         const obj = new Brand();
         obj.id = id;
-        obj.set("active", false); // ✅ soft delete
-        await obj.save(null, { useMasterKey: false });
+        obj.set("active", false);
+        await obj.save(null, { sessionToken }); // 帶使用者 token
       } else {
         const Setting = Parse.Object.extend("Setting");
         const obj = new Setting();
         obj.id = id;
-        obj.set("active", false); // ✅ soft delete
-        await obj.save(null, { useMasterKey: false });
+        obj.set("active", false);
+        await obj.save(null, { sessionToken });
       }
       await load();
     } catch (e) {
-      console.error(e);
+      console.error("[Settings] delete failed:", e);
       alert("刪除失敗");
     }
   };
@@ -261,7 +292,6 @@ export default function SettingsPage() {
 
                 <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                   <form onSubmit={onSubmit}>
-                    {/* ✅ 改用 Grid2 使按鈕寬且與 TextField 同高 */}
                     <Grid container spacing={2} alignItems="stretch">
                       {/* 名稱 */}
                       <Grid sx={{ flexGrow: 1 }}>
@@ -332,7 +362,7 @@ export default function SettingsPage() {
                           fullWidth
                           variant="contained"
                           startIcon={editingId ? <SaveIcon /> : <AddIcon />}
-                          sx={{ height: 56 }} // 同 TextField 高度
+                          sx={{ height: 56 }}
                         >
                           {editingId ? "儲存修改" : "新增"}
                         </Button>
