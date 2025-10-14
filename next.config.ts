@@ -2,12 +2,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // `experimental.appDir` is gone in Next 15+. Remove it.
-  // `experimental.typedRoutes` moved to top-level.
   typedRoutes: true,
-
-  // (optional) keep eslint on during build; set to true to bypass
   eslint: { ignoreDuringBuilds: false },
+
+  webpack(config, { isServer }) {
+    // Use the browser build of Parse only on the client bundle
+    if (!isServer) {
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        parse: "parse/dist/parse.min.js",
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
