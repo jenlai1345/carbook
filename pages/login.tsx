@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import Parse, { APP_ID, JS_KEY, SERVER_URL } from "../lib/parseClient";
+import { getParse, APP_ID, JS_KEY, SERVER_URL } from "../lib/parseClient";
 import {
   Alert,
   Box,
@@ -113,11 +113,76 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    const Parse = getParse(); // client-only init
     const u = username.trim();
     const p = password;
 
+    // Helper to adopt a session and finish
+    const onAuthed = async (sessionToken: string) => {
+      await Parse.User.become(sessionToken);
+      if (remember) localStorage.setItem("carbook:lastUsername", u);
+      else localStorage.removeItem("carbook:lastUsername");
+      router.push("/dashboard");
+    };
+
+    // REST-first (avoids SDK’s installationId path)
     try {
-      // Normal SDK login (fast path)
+      const base = (SERVER_URL || "").replace(/\/$/, "");
+      if (!base || !/^https?:\/\//i.test(base)) {
+        throw new Error(
+          `[REST login] Invalid NEXT_PUBLIC_PARSE_SERVER_URL: "${SERVER_URL}"`
+        );
+      }
+
+      const url =
+        `${base}/login?username=${encodeURIComponent(u)}` +
+        `&password=${encodeURIComponent(p)}`;
+
+      const REST_KEY = process.env.NEXT_PUBLIC_PARSE_REST_KEY; // optional, safer than JS key
+      const headers: Record<string, string> = {
+        "X-Parse-Application-Id": APP_ID,
+        "Content-Type": "application/json",
+      };
+      if (REST_KEY) headers["X-Parse-REST-API-Key"] = REST_KEY;
+      else headers["X-Parse-JavaScript-Key"] = JS_KEY;
+
+      const resp = await fetch(url, { method: "GET", headers });
+      const ct = resp.headers.get("content-type") || "";
+      const text = await resp.text();
+
+      // If we got HTML, you’re hitting your Next app → wrong SERVER_URL.
+      if (/text\/html/i.test(ct) || text.startsWith("<!DOCTYPE")) {
+        console.error("[REST login] HTML received. Check SERVER_URL.", {
+          url,
+          SERVER_URL,
+          status: resp.status,
+        });
+        throw new Error("伺服器設定錯誤（SERVER_URL）。");
+      }
+
+      const data = JSON.parse(text || "{}");
+
+      if (!resp.ok) {
+        const code = data?.code;
+        const message = data?.error || `HTTP ${resp.status}`;
+        if (code === 101) setError("帳號或密碼錯誤");
+        else setError(`(${code ?? "?"}) ${message}`);
+        setLoading(false);
+        return;
+      }
+
+      const token = data?.sessionToken;
+      if (!token) throw new Error("Missing sessionToken from REST login");
+
+      await onAuthed(token);
+      return;
+    } catch (restErr: any) {
+      // If REST failed for config/network reasons, try SDK as a last resort
+      console.warn("[Login] REST-first failed, trying SDK:", restErr);
+    }
+
+    // SDK fallback (only if REST path didn’t work)
+    try {
       const user = await Parse.User.logIn(u, p);
       if (user) {
         if (remember) localStorage.setItem("carbook:lastUsername", u);
@@ -126,90 +191,10 @@ export default function LoginPage() {
         return;
       }
     } catch (err: any) {
-      console.error("[Login] Parse login error:", err);
-
-      // Prod-only adapter bug: TypeError: reading 'length'
-      const looksLikeLengthBug =
-        err instanceof TypeError &&
-        /reading 'length'/.test(String(err?.message || ""));
-
-      if (looksLikeLengthBug) {
-        try {
-          const base = (SERVER_URL || "").replace(/\/$/, "");
-          if (!base || !/^https?:\/\//i.test(base)) {
-            throw new Error(
-              `[REST fallback] Invalid NEXT_PUBLIC_PARSE_SERVER_URL: "${SERVER_URL}"`
-            );
-          }
-
-          const url =
-            `${base}/login?username=${encodeURIComponent(u)}` +
-            `&password=${encodeURIComponent(p)}`;
-
-          const headers: Record<string, string> = {
-            "X-Parse-Application-Id": APP_ID,
-            "Content-Type": "application/json",
-          };
-          if (REST_KEY) headers["X-Parse-REST-API-Key"] = REST_KEY;
-          else headers["X-Parse-JavaScript-Key"] = JS_KEY;
-
-          const resp = await fetch(url, { method: "GET", headers });
-          const ct = resp.headers.get("content-type") || "";
-          const bodyText = await resp.text();
-
-          // If HTML returned, you likely hit your Next app → bad SERVER_URL
-          if (/text\/html/i.test(ct) || bodyText.startsWith("<!DOCTYPE")) {
-            console.error("[REST fallback] HTML received. Check SERVER_URL.", {
-              url,
-              SERVER_URL,
-              status: resp.status,
-            });
-            setError("伺服器設定錯誤（SERVER_URL）。請聯繫管理員。");
-            setLoading(false);
-            return;
-          }
-
-          let data: any = {};
-          try {
-            data = JSON.parse(bodyText);
-          } catch {
-            console.error("[REST fallback] Non-JSON:", bodyText.slice(0, 200));
-            setError("登入服務回傳非 JSON，請稍後再試。");
-            setLoading(false);
-            return;
-          }
-
-          if (!resp.ok) {
-            const code = data?.code;
-            const message = data?.error || `HTTP ${resp.status}`;
-            if (code === 101) setError("帳號或密碼錯誤");
-            else setError(`(${code ?? "?"}) ${message}`);
-            setLoading(false);
-            return;
-          }
-
-          const token = data?.sessionToken;
-          if (!token) throw new Error("Missing sessionToken from REST login");
-
-          await Parse.User.become(token);
-
-          if (remember) localStorage.setItem("carbook:lastUsername", u);
-          else localStorage.removeItem("carbook:lastUsername");
-          router.push("/dashboard");
-          return;
-        } catch (restErr: any) {
-          console.error("[Login] REST fallback failed:", restErr);
-          setError(restErr?.message || "Login failed");
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Normal Parse errors (wrong password / invalid session / etc.)
+      console.error("[Login] SDK fallback error:", err);
       const code = err?.code;
-      if (code === 101) {
-        setError("帳號或密碼錯誤");
-      } else if (code === 209) {
+      if (code === 101) setError("帳號或密碼錯誤");
+      else if (code === 209) {
         await Parse.User.logOut().catch(() => {});
         setError("登入狀態已失效，請重新登入。");
       } else {
