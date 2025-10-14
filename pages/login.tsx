@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import Parse from "../lib/parseClient";
+import Parse, { APP_ID, JS_KEY, SERVER_URL } from "../lib/parseClient";
 import {
   Alert,
   Box,
@@ -18,16 +18,15 @@ import {
   TextField,
   Typography,
   CircularProgress,
+  Snackbar,
 } from "@mui/material";
 import { Eye, EyeOff, CarFront, ShieldCheck } from "lucide-react";
-import { Snackbar } from "@mui/material";
 
-/** Brand color (tweak if you want) */
+/** Brand color */
 const CARBOOK_BLUE = "#1e88e5";
 
 /** Unified pill Input styles (no floating label used) */
 const PILL_INPUT_SX = {
-  // Input text + placeholder → black
   "& .MuiOutlinedInput-input": {
     color: "#000",
     "::placeholder": { color: "rgba(0,0,0,0.55)", opacity: 1 },
@@ -35,10 +34,9 @@ const PILL_INPUT_SX = {
     px: 2.2,
     fontSize: 18,
   },
-
   "& .MuiOutlinedInput-root": {
     borderRadius: 9999,
-    backgroundColor: "#fff", // light field so black text has contrast
+    backgroundColor: "#fff",
     "& .MuiOutlinedInput-notchedOutline": {
       borderColor: "rgba(0,0,0,0.20)",
     },
@@ -49,22 +47,20 @@ const PILL_INPUT_SX = {
       borderColor: CARBOOK_BLUE,
       borderWidth: 2,
     },
-
-    // Autofill fix → keep black text on white bg
+    // Autofill keep black text on white bg
     "& input:-webkit-autofill": {
       WebkitBoxShadow: "0 0 0 1000px #fff inset",
       WebkitTextFillColor: "#000",
       caretColor: "#000",
     },
-
-    // Adornment/icon color (e.g., eye/eye-off) → dark
+    // Adornment/icon color
     "& .MuiInputAdornment-root .MuiIconButton-root": {
       color: "rgba(0,0,0,0.7)",
     },
   },
 } as const;
 
-/** A tiny helper that renders a fixed label above TextField (no floating label). */
+/** Fixed label above TextField (no floating label). */
 function LabeledField({
   label,
   children,
@@ -102,107 +98,127 @@ export default function LoginPage() {
   const [snackSeverity, setSnackSeverity] = useState<
     "success" | "error" | "info"
   >("info");
-
   const [forgetLoading, setForgetLoading] = useState(false);
+
+  // Optional REST key (safer for REST than JS key)
+  const REST_KEY = process.env.NEXT_PUBLIC_PARSE_REST_KEY;
 
   useEffect(() => {
     const last = localStorage.getItem("carbook:lastUsername");
     if (last) setUsername(last);
   }, []);
 
- async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
-   e.preventDefault();
-   setLoading(true);
-   setError(null);
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-   const u = username.trim();
-   const p = password;
+    const u = username.trim();
+    const p = password;
 
-   try {
-     // Primary path: normal SDK login
-     const user = await Parse.User.logIn(u, p);
-     if (user) {
-       if (remember) localStorage.setItem("carbook:lastUsername", u);
-       else localStorage.removeItem("carbook:lastUsername");
-       router.push("/dashboard");
-       return;
-     }
-   } catch (err: any) {
-     // If this is the prod-only bug: TypeError ... (reading 'length'), do REST fallback
-     const looksLikeLengthBug =
-       err instanceof TypeError &&
-       /reading 'length'/.test(String(err?.message || ""));
+    try {
+      // Normal SDK login (fast path)
+      const user = await Parse.User.logIn(u, p);
+      if (user) {
+        if (remember) localStorage.setItem("carbook:lastUsername", u);
+        else localStorage.removeItem("carbook:lastUsername");
+        router.push("/dashboard");
+        return;
+      }
+    } catch (err: any) {
+      console.error("[Login] Parse login error:", err);
 
-     if (looksLikeLengthBug) {
-       try {
-         // --- REST fallback (GET /login) ---
-         // Ensure your parseClient exports these or read from env
-         const appId =
-           (Parse as any)._getApplicationId?.() || Parse.applicationId;
-         const jsKey =
-           (Parse as any)._getJavascriptKey?.() || (Parse as any).javaScriptKey;
-         const serverURL =
-           (Parse as any)._getServerURL?.() || (Parse as any).serverURL || "";
+      // Prod-only adapter bug: TypeError: reading 'length'
+      const looksLikeLengthBug =
+        err instanceof TypeError &&
+        /reading 'length'/.test(String(err?.message || ""));
 
-         const base = serverURL.replace(/\/$/, "");
-         const url =
-           `${base}/login?username=${encodeURIComponent(u)}` +
-           `&password=${encodeURIComponent(p)}`;
+      if (looksLikeLengthBug) {
+        try {
+          const base = (SERVER_URL || "").replace(/\/$/, "");
+          if (!base || !/^https?:\/\//i.test(base)) {
+            throw new Error(
+              `[REST fallback] Invalid NEXT_PUBLIC_PARSE_SERVER_URL: "${SERVER_URL}"`
+            );
+          }
 
-         const resp = await fetch(url, {
-           method: "GET",
-           headers: {
-             "X-Parse-Application-Id": appId,
-             "X-Parse-JavaScript-Key": jsKey,
-             "Content-Type": "application/json",
-           },
-         });
+          const url =
+            `${base}/login?username=${encodeURIComponent(u)}` +
+            `&password=${encodeURIComponent(p)}`;
 
-         if (!resp.ok) {
-           // surface server error nicely
-           const data = await resp.json().catch(() => ({}));
-           const code = data?.code;
-           const message = data?.error || `HTTP ${resp.status}`;
-           if (code === 101) {
-             setError("帳號或密碼錯誤");
-           } else {
-             setError(`(${code ?? "?"}) ${message}`);
-           }
-           return;
-         }
+          const headers: Record<string, string> = {
+            "X-Parse-Application-Id": APP_ID,
+            "Content-Type": "application/json",
+          };
+          if (REST_KEY) headers["X-Parse-REST-API-Key"] = REST_KEY;
+          else headers["X-Parse-JavaScript-Key"] = JS_KEY;
 
-         const data = await resp.json();
-         const token = data?.sessionToken;
-         if (!token) throw new Error("Missing sessionToken from REST login");
+          const resp = await fetch(url, { method: "GET", headers });
+          const ct = resp.headers.get("content-type") || "";
+          const bodyText = await resp.text();
 
-         // Adopt the session in the SDK so the rest of your app keeps working normally
-         await Parse.User.become(token);
+          // If HTML returned, you likely hit your Next app → bad SERVER_URL
+          if (/text\/html/i.test(ct) || bodyText.startsWith("<!DOCTYPE")) {
+            console.error("[REST fallback] HTML received. Check SERVER_URL.", {
+              url,
+              SERVER_URL,
+              status: resp.status,
+            });
+            setError("伺服器設定錯誤（SERVER_URL）。請聯繫管理員。");
+            setLoading(false);
+            return;
+          }
 
-         if (remember) localStorage.setItem("carbook:lastUsername", u);
-         else localStorage.removeItem("carbook:lastUsername");
-         router.push("/dashboard");
-         return;
-       } catch (restErr: any) {
-         console.error("[Login] REST fallback failed:", restErr);
-         // fall through to generic error handling below
-       }
-     }
+          let data: any = {};
+          try {
+            data = JSON.parse(bodyText);
+          } catch {
+            console.error("[REST fallback] Non-JSON:", bodyText.slice(0, 200));
+            setError("登入服務回傳非 JSON，請稍後再試。");
+            setLoading(false);
+            return;
+          }
 
-     // Normal error handling (wrong password, invalid session, etc.)
-     const code = err?.code;
-     if (code === 101) {
-       setError("帳號或密碼錯誤");
-     } else if (code === 209) {
-       await Parse.User.logOut().catch(() => {});
-       setError("登入狀態已失效，請重新登入。");
-     } else {
-       setError(`(${code ?? "?"}) ${err?.message || "Login failed"}`);
-     }
-   } finally {
-     setLoading(false);
-   }
- }
+          if (!resp.ok) {
+            const code = data?.code;
+            const message = data?.error || `HTTP ${resp.status}`;
+            if (code === 101) setError("帳號或密碼錯誤");
+            else setError(`(${code ?? "?"}) ${message}`);
+            setLoading(false);
+            return;
+          }
 
+          const token = data?.sessionToken;
+          if (!token) throw new Error("Missing sessionToken from REST login");
+
+          await Parse.User.become(token);
+
+          if (remember) localStorage.setItem("carbook:lastUsername", u);
+          else localStorage.removeItem("carbook:lastUsername");
+          router.push("/dashboard");
+          return;
+        } catch (restErr: any) {
+          console.error("[Login] REST fallback failed:", restErr);
+          setError(restErr?.message || "Login failed");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Normal Parse errors (wrong password / invalid session / etc.)
+      const code = err?.code;
+      if (code === 101) {
+        setError("帳號或密碼錯誤");
+      } else if (code === 209) {
+        await Parse.User.logOut().catch(() => {});
+        setError("登入狀態已失效，請重新登入。");
+      } else {
+        setError(`(${code ?? "?"}) ${err?.message || "Login failed"}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleForgot() {
     const email = username.trim();
@@ -240,7 +256,7 @@ export default function LoginPage() {
         color: "#fff",
       }}
     >
-      {/* Left: minimal, professional illustration */}
+      {/* Left illustration */}
       <Box
         sx={{
           position: "relative",
@@ -315,7 +331,6 @@ export default function LoginPage() {
                 required
                 fullWidth
                 variant="outlined"
-                // No label here → no overlap ever
                 InputProps={{ sx: PILL_INPUT_SX }}
               />
             </LabeledField>
@@ -442,6 +457,7 @@ export default function LoginPage() {
               </Link>
             </Box>
           </Box>
+
           <Snackbar
             open={!!snack}
             autoHideDuration={3800}
@@ -479,7 +495,6 @@ function HeroIllustrationMinimal() {
         border: "1px solid rgba(255,255,255,0.2)",
       }}
     >
-      {/* 👇 Add xmlnsXlink so xlinkHref works */}
       <svg
         viewBox="0 0 1200 800"
         width="100%"
@@ -498,10 +513,8 @@ function HeroIllustrationMinimal() {
           </linearGradient>
         </defs>
 
-        {/* Background */}
         <rect width="1200" height="800" fill="url(#bg)" />
 
-        {/* Top KPI tiles (kept small and high to leave space for car) */}
         <g transform="translate(120,120)">
           {[0, 1, 2].map((i) => (
             <g key={i} transform={`translate(${i * 320}, 0)`}>
@@ -546,18 +559,14 @@ function HeroIllustrationMinimal() {
           ))}
         </g>
 
-        {/* Ground shadow */}
         <ellipse cx="600" cy="610" rx="380" ry="24" fill="rgba(0,0,0,0.22)" />
 
-        {/* Car asset — draw LAST so it’s on top */}
-        {/* Put your file at /public/assets/car.svg */}
         <g transform="translate(320,480) scale(0.95)">
-          {/* Either of these two attributes work in modern browsers; include both for safety */}
           <image
             xlinkHref="/assets/car.svg"
             href="/assets/car.svg"
-            width="574" /* natural width from your SVG's viewBox */
-            height="252" /* natural height from your SVG's viewBox */
+            width="574"
+            height="252"
             preserveAspectRatio="xMidYMid meet"
           />
         </g>
