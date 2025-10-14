@@ -88,6 +88,7 @@ function LabeledField({
 
 export default function LoginPage() {
   const router = useRouter();
+  const [redirecting, setRedirecting] = useState(true);
   const [username, setUsername] = useState("");
   const [remember, setRemember] = useState(true);
   const [password, setPassword] = useState("");
@@ -107,6 +108,31 @@ export default function LoginPage() {
     const last = localStorage.getItem("carbook:lastUsername");
     if (last) setUsername(last);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const Parse = getParse();
+    let alive = true;
+
+    (async () => {
+      try {
+        // 讀取本機已登入使用者（Parse 會從 localStorage 載入）
+        const u = await Parse.User.currentAsync();
+        if (!alive) return;
+        if (u?.getSessionToken()) {
+          // 已登入 → 直接導去儀表板（不把這次導頁記入歷史）
+          router.replace("/dashboard");
+          return;
+        }
+      } finally {
+        if (alive) setRedirecting(false); // 顯示登入表單
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [router]);
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -226,6 +252,22 @@ export default function LoginPage() {
     } finally {
       setForgetLoading(false);
     }
+  }
+
+  if (redirecting) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          color: "#fff",
+          background: "linear-gradient(120deg, #0f172a 0%, #0b1022 100%)",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
