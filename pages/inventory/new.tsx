@@ -58,6 +58,7 @@ import DocumentTab from "@/components/inventory/DocumentTab";
 import InBoundTab from "@/components/inventory/InboundTab";
 import InsuranceTab from "@/components/inventory/InsuranceTab";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import { useBrandOptions } from "@/hooks/useBrandOptions";
 
 export default function InventoryNewPage() {
   return (
@@ -207,59 +208,15 @@ function InventoryNewContent() {
     },
   });
 
-  // watch brand for series query
-  const watchedBrandId = useWatch({ control, name: "brandId" });
-
-  interface Option {
-    id: string;
-    name: string;
-  }
-  const [brandOpts, setBrandOpts] = React.useState<Option[]>([]);
   const [brandInput, setBrandInput] = React.useState("");
   const debBrand = useDebounce(brandInput);
 
-  React.useEffect(() => {
-    let active = true;
-    (async () => {
-      const q = new Parse.Query("Brand");
-      q.equalTo("owner", Parse.User.current());
-      if (debBrand) q.matches("name", debBrand, "i");
-      q.ascending("name");
-      const r = await q.find();
-      if (active) {
-        const arr = r
-          .map((x) => ({ id: x.id as string, name: x.get("name") as string }))
-          .filter((o) => !!o.id);
-        setBrandOpts(arr);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [debBrand]);
-
-  // React.useEffect(() => {
-  //   let active = true;
-  //   (async () => {
-  //     const q = new Parse.Query("Series");
-  //     if (watchedBrandId) {
-  //       const Brand = Parse.Object.extend("Brand");
-  //       q.equalTo("brand", Brand.createWithoutData(watchedBrandId));
-  //     }
-  //     if (debSeries) q.matches("name", debSeries, "i");
-  //     q.ascending("name").limit(20);
-  //     const r = await q.find();
-  //     if (active) {
-  //       const arr = r
-  //         .map((x) => ({ id: x.id || "", name: x.get("name") as string }))
-  //         .filter((o) => o.id !== "");
-  //       setSeriesOpts(arr);
-  //     }
-  //   })();
-  //   return () => {
-  //     active = false;
-  //   };
-  // }, [debSeries, watchedBrandId]);
+  const user = Parse.User.current(); // or leave null initially; hook 內會 currentAsync()
+  const {
+    options: brandOpts,
+    setOptions: setBrandOpts, // 可保留給你手動插入「剛新建的品牌」
+    loading: brandLoading,
+  } = useBrandOptions(user?.id ?? "", debBrand);
 
   /* --------- prefill if carId --------- */
   React.useEffect(() => {
@@ -579,7 +536,7 @@ function InventoryNewContent() {
     car.set("inboundDate", v.inboundDate || null);
     car.set("promisedDate", v.promisedDate || null);
     car.set("returnDate", v.returnDate || null);
-    
+
     car.set("style", v.style || null);
     car.set("buyPriceWan", v.buyPriceWan ? Number(v.buyPriceWan) : null);
     car.set("sellPriceWan", v.sellPriceWan ? Number(v.sellPriceWan) : null);
@@ -943,28 +900,53 @@ function InventoryNewContent() {
                 render={({ field }) => (
                   <Autocomplete
                     freeSolo
-                    forcePopupIcon={true}
+                    forcePopupIcon
                     popupIcon={<ArrowDropDownIcon />}
-                    options={brandOpts}
-                    getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
-                    value={brandValue as any}
+                    options={brandOpts} // Option[] = {id, name}
+                    loading={brandLoading}
+                    value={brandValue as any} // Option | string | null
+                    inputValue={field.value ?? ""} // keep input synced with RHF
+                    onOpen={() => setBrandInput("")} // show full list on open
                     onInputChange={(_, v) => {
-                      field.onChange(v);
-                      setBrandInput(v);
-                      setValue("brandId", "");
+                      field.onChange(v); // update RHF value
+                      setBrandInput(v); // debounced fetch
+                      setValue("brandId", ""); // reset id while typing
                     }}
                     onChange={(_, v) => {
                       if (typeof v === "string") {
+                        field.onChange(v);
                         setValue("brandName", v);
                         setValue("brandId", "");
                       } else if (v) {
+                        field.onChange(v.name);
                         setValue("brandName", v.name);
                         setValue("brandId", v.id);
                       } else {
+                        field.onChange("");
                         setValue("brandName", "");
                         setValue("brandId", "");
                       }
                     }}
+                    // correct matching for Option vs value
+                    isOptionEqualToValue={(option, value) => {
+                      if (!value) return false;
+                      if (typeof value === "string")
+                        return option.name === value;
+                      return option.id === value.id;
+                    }}
+                    getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
+                    // show all options when no query; otherwise use default filter
+                    filterOptions={(options, state) => {
+                      if (!state.inputValue) return options;
+                      return options.filter((o) =>
+                        o.name
+                          .toLowerCase()
+                          .includes(state.inputValue.toLowerCase())
+                      );
+                    }}
+                    noOptionsText={
+                      field.value ? "沒有符合的品牌" : "尚未有品牌"
+                    }
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -973,6 +955,17 @@ function InventoryNewContent() {
                         error={!!errors.brandName}
                         helperText={errors.brandName?.message}
                         fullWidth
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {brandLoading ? (
+                                <CircularProgress size={18} />
+                              ) : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
                       />
                     )}
                   />
