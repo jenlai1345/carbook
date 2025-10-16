@@ -35,6 +35,13 @@ export const basicSchema = z.object({
 });
 
 /* document */
+/** 單一上傳圖片的結構 */
+export const uploadedImageSchema = z.object({
+  id: z.string(), // Parse.File 的 name()（唯一檔名）
+  url: z.string().url(),
+  name: z.string(), // 原始檔名
+});
+
 export const documentDetailSchema = z.object({
   audioCode: z.string().optional().or(z.literal("")),
   spareKey: z.string().optional().or(z.literal("")),
@@ -62,6 +69,7 @@ export const documentDetailSchema = z.object({
   plate: z.enum(["無", "有", "缺(Φ)"]).optional().or(z.literal("")).default(""),
   taxStatus: z.enum(["已繳", "缺"]).optional().or(z.literal("")).default(""),
   remark: z.string().optional().or(z.literal("")),
+  images: z.array(uploadedImageSchema).optional().default([]),
 });
 
 export const documentSchema = z.object({
@@ -200,3 +208,7 @@ export const formSchema = headerSchema
   .and(financeSchema);
 
 export type FormValues = z.infer<typeof formSchema>;
+
+export type UploadedImage = z.infer<typeof uploadedImageSchema>;
+
+export type DocumentDetail = z.infer<typeof documentDetailSchema>;

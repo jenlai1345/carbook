@@ -11,6 +11,7 @@ import {
   Stack,
   CircularProgress,
 } from "@mui/material";
+import type { UploadedImage } from "@/schemas/carSchemas";
 import { useRouter } from "next/router";
 import { Controller, useForm, useWatch, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -66,6 +67,49 @@ export default function InventoryNewPage() {
     </CarSnackbarProvider>
   );
 }
+
+const normalizeImages = (raw: any): UploadedImage[] => {
+  if (!raw || !Array.isArray(raw)) return [];
+
+  // Already {id,url,name}[]
+  if (
+    raw.length &&
+    typeof raw[0] === "object" &&
+    "url" in raw[0] &&
+    "id" in raw[0]
+  ) {
+    return raw as UploadedImage[];
+  }
+
+  // Parse.File[]
+  if (
+    raw.length &&
+    typeof raw[0] === "object" &&
+    typeof raw[0].url === "function"
+  ) {
+    const items = raw
+      .map((pf: any) => {
+        const url: string | undefined = pf.url?.();
+        const id: string | undefined = pf.name?.();
+        const name: string | undefined = pf._name || pf.name?.();
+        if (!url || !id) return null;
+        return { id, url, name: name || id };
+      })
+      .filter((x): x is UploadedImage => x !== null); // <-- type guard
+    return items;
+  }
+
+  // string[] (urls)
+  if (raw.length && typeof raw[0] === "string") {
+    return (raw as string[]).map((u, i) => ({
+      id: `img_${i}_${u.match(/[^/]+$/)?.[0] ?? "file"}`,
+      url: u,
+      name: u.match(/[^/]+$/)?.[0] ?? "file",
+    }));
+  }
+
+  return [];
+};
 
 /* ==================== Page ==================== */
 function InventoryNewContent() {
@@ -168,6 +212,7 @@ function InventoryNewContent() {
         plate: "",
         taxStatus: "",
         remark: "",
+        images: [],
       },
 
       inbound: {
@@ -308,6 +353,7 @@ function InventoryNewContent() {
             plate: "",
             taxStatus: "",
             remark: "",
+            images: [],
           },
         };
 
@@ -328,6 +374,7 @@ function InventoryNewContent() {
           plate: doc?.plate ?? "",
           taxStatus: doc?.taxStatus ?? "",
           remark: doc?.remark ?? "",
+          images: normalizeImages(doc?.images),
         };
 
         // inbound
@@ -625,6 +672,7 @@ function InventoryNewContent() {
         plate: n(d.plate),
         taxStatus: n(d.taxStatus),
         remark: n(d.remark),
+        images: Array.isArray(d.images) ? (d.images as UploadedImage[]) : [],
       };
 
       car.set("document", docOut);
