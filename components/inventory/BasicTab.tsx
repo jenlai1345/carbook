@@ -1,7 +1,7 @@
 // components/inventory/BasicTab.tsx
 import * as React from "react";
 import { Controller } from "react-hook-form";
-import { Box, TextField, Grid, Autocomplete } from "@mui/material";
+import { Box, TextField, Grid, Autocomplete, Typography } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs, { Dayjs } from "dayjs";
 import Parse from "@/lib/parseClient";
@@ -11,6 +11,7 @@ import { DEALER_OPTIONS } from "@/utils/constants";
 import type { Control } from "react-hook-form";
 import type { FormValues } from "@/schemas/carSchemas";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import RHFImageUpload from "@/components/RHFImageUpload";
 
 type Props = {
   control: Control<FormValues, any, any>; // note the third generic
@@ -309,6 +310,20 @@ export default function BasicTab({ control }: Props) {
             )}
           />
         </Grid>
+
+        {/* 車輛照片（在「處置」之後） */}
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2" gutterBottom fontWeight={700}>
+            車輛照片
+          </Typography>
+          <RHFImageUpload<FormValues>
+            control={control}
+            name="images" // ⬅️ 存在表單根層的 images
+            label="上傳車輛照片"
+            cols={5} // 你可以調整每列幾張
+            height={140} // 也可以調整縮圖高度
+          />
+        </Box>
       </Grid>
     </Box>
   );

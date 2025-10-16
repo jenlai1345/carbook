@@ -310,6 +310,7 @@ function InventoryNewContent() {
         }
 
         const baseValues: Partial<FormValues> = {
+          images: normalizeImages(o.get("images")),
           plateNo: o.get("plateNo") ?? "",
           prevPlateNo: o.get("prevPlateNo") ?? "",
           deliverDate: toDateInput(o.get("deliverDate")),
@@ -599,6 +600,8 @@ function InventoryNewContent() {
     car.set("returnDate", v.returnDate || null);
 
     car.set("disposition", v.disposition || null);
+
+    car.set("images", Array.isArray(v.images) ? v.images : []);
 
     // optional: scope by user
     const u = Parse.User.current();

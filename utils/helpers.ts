@@ -2,35 +2,6 @@
 import Parse from "../lib/parseClient";
 import type { Car, CarStatus } from "../models";
 
-// --- helpers (put near top of DocumentTab.tsx) ---
-export const extFrom = (name: string, fallback = "jpg") => {
-  const dot = name.lastIndexOf(".");
-  const raw = dot >= 0 ? name.slice(dot + 1) : "";
-  return raw ? raw.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() : fallback;
-};
-
-export const safeName = (orig: string, mime?: string) => {
-  const ext =
-    (mime &&
-      mime
-        .split("/")[1]
-        ?.replace(/[^a-zA-Z0-9]/g, "")
-        .toLowerCase()) ||
-    extFrom(orig) ||
-    "jpg";
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `img_${Date.now()}_${rand}.${ext}`;
-};
-
-// Read file as base64 (strip the "data:*/*;base64," prefix)
-export const toBase64 = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(",")[1] || "");
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-
 /** Debounce hook */
 export function useDebounce<T>(value: T, delay = 250) {
   const React = require("react") as typeof import("react");

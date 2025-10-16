@@ -1,6 +1,12 @@
 // schemas/carSchemas.ts
 import { z } from "zod";
 
+/** 單一上傳圖片的結構 */
+export const uploadedImageSchema = z.object({
+  id: z.string(), // Parse.File 的 name()（唯一檔名）
+  url: z.string().url(),
+  name: z.string(), // 原始檔名
+});
 /* header */
 export const headerSchema = z.object({
   plateNo: z.string().min(1, "必填"),
@@ -32,16 +38,10 @@ export const basicSchema = z.object({
   promisedDate: z.string().optional().or(z.literal("")),
   returnDate: z.string().optional().or(z.literal("")),
   disposition: z.string().optional().or(z.literal("")),
+  images: z.array(uploadedImageSchema).optional().default([]),
 });
 
 /* document */
-/** 單一上傳圖片的結構 */
-export const uploadedImageSchema = z.object({
-  id: z.string(), // Parse.File 的 name()（唯一檔名）
-  url: z.string().url(),
-  name: z.string(), // 原始檔名
-});
-
 export const documentDetailSchema = z.object({
   audioCode: z.string().optional().or(z.literal("")),
   spareKey: z.string().optional().or(z.literal("")),
