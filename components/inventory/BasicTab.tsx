@@ -229,7 +229,7 @@ export default function BasicTab({ control }: Props) {
                 value={null}
                 onChange={() => {}}
                 renderInput={(params) => (
-                  <TextField {...params} label="代理商" fullWidth />
+                  <TextField {...params} label="整備情形" fullWidth />
                 )}
               />
             )}

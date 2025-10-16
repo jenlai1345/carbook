@@ -1,4 +1,3 @@
-// pages/inventory/new.tsx
 import * as React from "react";
 import {
   Box,
@@ -13,7 +12,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useRouter } from "next/router";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Parse from "../../lib/parseClient";
 import CarToolbar from "@/components/CarToolbar";
@@ -67,6 +66,7 @@ export default function InventoryNewPage() {
     </CarSnackbarProvider>
   );
 }
+
 /* ==================== Page ==================== */
 function InventoryNewContent() {
   const { showMessage } = useCarSnackbar();
@@ -78,14 +78,8 @@ function InventoryNewContent() {
 
   const [loading, setLoading] = React.useState<boolean>(!!carId);
 
-  const {
-    control,
-    handleSubmit,
-    setValue,
-    getValues,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<FormValues, any, any>({
+  // RHF form (wrap with FormProvider later)
+  const form = useForm<FormValues, any, any>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
       plateNo: "",
@@ -132,6 +126,7 @@ function InventoryNewContent() {
       origCommissionWan: "",
       origOwnerRegZip: "",
       origOwnerMailZip: "",
+
       newOwnerName: "",
       newOwnerPhone: "",
       newContractDate: "",
@@ -161,17 +156,17 @@ function InventoryNewContent() {
       document: {
         audioCode: "",
         spareKey: "",
-        certOk: "", // "無" | "有" | "缺"
-        license: "", // "無" | "有"
-        application: "", // "無" | "有" | "缺(米)"
-        transferPaper: "", // "無" | "有"
-        payoffProof: "", // "無" | "有"
-        inspectDate: "", // "YYYY-MM-DD"
-        taxCert: "", // "無" | "有" | "影本"
-        factoryCert: "", // "無" | "有" | "缺(△)"
-        copyFlag: "", // "無" | "有"
-        plate: "", // "無" | "有" | "缺(Φ)"
-        taxStatus: "", // "已繳" | "缺"
+        certOk: "",
+        license: "",
+        application: "",
+        transferPaper: "",
+        payoffProof: "",
+        inspectDate: "",
+        taxCert: "",
+        factoryCert: "",
+        copyFlag: "",
+        plate: "",
+        taxStatus: "",
         remark: "",
       },
 
@@ -188,7 +183,7 @@ function InventoryNewContent() {
         changeDate: "",
         changeMethod: "",
         originalMileageKm: "",
-        adjustedMileageKm: "", // was arrivalMileageKm
+        adjustedMileageKm: "",
       },
 
       insurance: {
@@ -208,15 +203,39 @@ function InventoryNewContent() {
     },
   });
 
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    getValues,
+    reset,
+    formState: { errors, isSubmitting },
+  } = form;
+
+  // watch brand for series query
+  const watchedBrandId = useWatch({ control, name: "brandId" });
+
+  interface Option {
+    id: string;
+    name: string;
+  }
+
+  // Brand options with localStorage + SWR
   const [brandInput, setBrandInput] = React.useState("");
   const debBrand = useDebounce(brandInput);
-
-  const user = Parse.User.current(); // or leave null initially; hook 內會 currentAsync()
+  const user = Parse.User.current();
   const {
     options: brandOpts,
-    setOptions: setBrandOpts, // 可保留給你手動插入「剛新建的品牌」
+    setOptions: setBrandOpts,
     loading: brandLoading,
   } = useBrandOptions(user?.id ?? "", debBrand);
+
+  // brand value derive
+  const brandValue = React.useMemo(() => {
+    const id = getValues("brandId");
+    const name = getValues("brandName");
+    return id ? brandOpts.find((o) => o.id === id) ?? null : name || null;
+  }, [brandOpts, getValues]);
 
   /* --------- prefill if carId --------- */
   React.useEffect(() => {
@@ -233,16 +252,18 @@ function InventoryNewContent() {
 
         const brandObj = o.get("brand") as Parse.Object | undefined;
         const ownerObj = o.get("originalOwner") as Parse.Object | undefined;
-        const buyerObj = o.get("newOwner") as Parse.Object | undefined;
+        const buyerObj = o.get("newOwner") as Parse.Object | undefined; // ← declare ONCE here
 
         const brandId = brandObj?.id ?? "";
         const brandName = (brandObj?.get?.("name") as string) ?? "";
 
         if (brandId && brandName && !brandOpts.find((b) => b.id === brandId)) {
-          setBrandOpts((prev) => [{ id: brandId, name: brandName }, ...prev]);
+          setBrandOpts((prev: Option[]) => [
+            { id: brandId, name: brandName },
+            ...prev,
+          ]);
         }
 
-        // ✅ Declare baseValues as Partial<FormValues> so you can add nested keys safely
         const baseValues: Partial<FormValues> = {
           plateNo: o.get("plateNo") ?? "",
           prevPlateNo: o.get("prevPlateNo") ?? "",
@@ -253,7 +274,6 @@ function InventoryNewContent() {
           style: o.get("style") ?? "",
           buyPriceWan: (o.get("buyPriceWan") ?? "").toString(),
           sellPriceWan: (o.get("sellPriceWan") ?? "").toString(),
-
           factoryYM: o.get("factoryYM") ?? "",
           plateYM: o.get("plateYM") ?? "",
           model: o.get("model") ?? "",
@@ -270,54 +290,9 @@ function InventoryNewContent() {
           promisedDate: toDateInput(o.get("promisedDate")),
           returnDate: toDateInput(o.get("returnDate")),
           disposition: o.get("disposition") ?? "",
-
-          origOwnerName: "",
-          origOwnerPhone: "",
-          origOwnerIdNo: "",
-          origOwnerBirth: "",
-          origContractDate: "",
-          origDealPriceWan: "",
-          origCommissionWan: "",
-          origOwnerRegZip: "",
-          origOwnerRegAddr: "",
-          origOwnerMailZip: "",
-          origOwnerMailAddr: "",
-          consignorName: "",
-          consignorPhone: "",
-          referrerName: "",
-          referrerPhone: "",
-          purchasedTransferred: "",
-          registeredToName: "",
-          procurementMethod: "",
-          origOwnerNote: "",
-
-          newOwnerName: "",
-          newOwnerPhone: "",
-          newContractDate: "",
-          handoverDate: "",
-          newDealPriceWan: "",
-          newCommissionWan: "",
-          newOwnerIdNo: "",
-          newOwnerBirth: "",
-          newOwnerRegAddr: "",
-          newOwnerRegZip: "",
-          newOwnerMailAddr: "",
-          newOwnerMailZip: "",
-          buyerAgentName: "",
-          buyerAgentPhone: "",
-          referrerName2: "",
-          referrerPhone2: "",
-          salesmanName: "",
-          salesCommissionPct: "",
-          salesMode: "",
-          preferredShop: "",
-          newOwnerNote: "",
-
           payments: [],
           receipts: [],
           fees: [],
-
-          // ✅ Nest document under its own key (matches Zod & defaultValues)
           document: {
             audioCode: "",
             spareKey: "",
@@ -336,7 +311,7 @@ function InventoryNewContent() {
           },
         };
 
-        // ✅ Prefill document if available
+        // document
         const doc = (o.get("document") as any) || {};
         baseValues.document = {
           audioCode: doc?.audioCode ?? "",
@@ -355,10 +330,11 @@ function InventoryNewContent() {
           remark: doc?.remark ?? "",
         };
 
+        // inbound
         const inbound = (o.get("inbound") as any) || {};
         (baseValues as any).inbound = {
           orderNo: inbound?.orderNo ?? "",
-          keyNo: inbound?.keyNo ?? inbound?.wheelNo ?? "", // support old field
+          keyNo: inbound?.keyNo ?? inbound?.wheelNo ?? "",
           purchaseMode: inbound?.purchaseMode ?? "",
           purchaser: inbound?.purchaser ?? "",
           listPriceWan: (inbound?.listPriceWan ?? "").toString(),
@@ -376,6 +352,7 @@ function InventoryNewContent() {
           ).toString(),
         };
 
+        // insurance
         const ins = (o.get("insurance") as any) || {};
         (baseValues as any).insurance = {
           insuranceType: ins?.insuranceType ?? "",
@@ -392,82 +369,95 @@ function InventoryNewContent() {
           collection: ins?.collection ?? "",
         };
 
-        // ✅ Finally reset form with typed defaults
-        reset(baseValues as FormValues);
-
-        // original owner prefill
+        // original owner
         if (ownerObj) {
           setOrigOwnerId(ownerObj.id ?? "");
-          baseValues.origOwnerName = ownerObj.get("name") ?? "";
-          baseValues.origOwnerPhone = ownerObj.get("phone") ?? "";
-          baseValues.origOwnerIdNo = ownerObj.get("idNo") ?? "";
-          baseValues.origOwnerBirth = toDateInput(ownerObj.get("birth"));
-          baseValues.origContractDate = toDateInput(
+          (baseValues as any).origOwnerName = ownerObj.get("name") ?? "";
+          (baseValues as any).origOwnerPhone = ownerObj.get("phone") ?? "";
+          (baseValues as any).origOwnerIdNo = ownerObj.get("idNo") ?? "";
+          (baseValues as any).origOwnerBirth = toDateInput(
+            ownerObj.get("birth")
+          );
+          (baseValues as any).origContractDate = toDateInput(
             ownerObj.get("contractDate")
           );
-          baseValues.origDealPriceWan = (
+          (baseValues as any).origDealPriceWan = (
             ownerObj.get("dealPriceWan") ?? ""
           ).toString();
-          baseValues.origCommissionWan = (
+          (baseValues as any).origCommissionWan = (
             ownerObj.get("commissionWan") ?? ""
           ).toString();
-          baseValues.origOwnerRegZip = ownerObj.get("regZip") ?? "";
-          baseValues.origOwnerRegAddr = ownerObj.get("regAddr") ?? "";
-          baseValues.origOwnerMailZip = ownerObj.get("mailZip") ?? "";
-          baseValues.origOwnerMailAddr = ownerObj.get("mailAddr") ?? "";
-          baseValues.consignorName = ownerObj.get("consignorName") ?? "";
-          baseValues.consignorPhone = ownerObj.get("consignorPhone") ?? "";
-          baseValues.referrerName = ownerObj.get("referrerName") ?? "";
-          baseValues.referrerPhone = ownerObj.get("referrerPhone") ?? "";
-          baseValues.purchasedTransferred =
+          (baseValues as any).origOwnerRegZip = ownerObj.get("regZip") ?? "";
+          (baseValues as any).origOwnerRegAddr = ownerObj.get("regAddr") ?? "";
+          (baseValues as any).origOwnerMailZip = ownerObj.get("mailZip") ?? "";
+          (baseValues as any).origOwnerMailAddr =
+            ownerObj.get("mailAddr") ?? "";
+          (baseValues as any).consignorName =
+            ownerObj.get("consignorName") ?? "";
+          (baseValues as any).consignorPhone =
+            ownerObj.get("consignorPhone") ?? "";
+          (baseValues as any).referrerName = ownerObj.get("referrerName") ?? "";
+          (baseValues as any).referrerPhone =
+            ownerObj.get("referrerPhone") ?? "";
+          (baseValues as any).purchasedTransferred =
             ownerObj.get("purchasedTransferred") ?? "";
-          baseValues.registeredToName = ownerObj.get("registeredToName") ?? "";
-          baseValues.procurementMethod =
+          (baseValues as any).registeredToName =
+            ownerObj.get("registeredToName") ?? "";
+          (baseValues as any).procurementMethod =
             ownerObj.get("procurementMethod") ?? "";
-          baseValues.origOwnerNote = ownerObj.get("note") ?? "";
+          (baseValues as any).origOwnerNote = ownerObj.get("note") ?? "";
         } else {
           setOrigOwnerId(null);
         }
 
-        // new owner prefill
+        // new owner — reuse buyerObj (NO redeclare)
         if (buyerObj) {
           setNewOwnerId(buyerObj.id ?? "");
-          baseValues.newOwnerName = buyerObj.get("name") ?? "";
-          baseValues.newOwnerPhone = buyerObj.get("phone") ?? "";
-          baseValues.newContractDate = toDateInput(
+          (baseValues as any).newOwnerName = buyerObj.get("name") ?? "";
+          (baseValues as any).newOwnerPhone = buyerObj.get("phone") ?? "";
+          (baseValues as any).newContractDate = toDateInput(
             buyerObj.get("contractDate")
           );
-          baseValues.newDealPriceWan = (
+          (baseValues as any).newDealPriceWan = (
             buyerObj.get("dealPriceWan") ?? ""
           ).toString();
-          baseValues.newCommissionWan = (
+          (baseValues as any).newCommissionWan = (
             buyerObj.get("commissionWan") ?? ""
           ).toString();
-          baseValues.handoverDate = toDateInput(buyerObj.get("handoverDate"));
-          baseValues.newOwnerIdNo = buyerObj.get("idNo") ?? "";
-          baseValues.newOwnerBirth = toDateInput(buyerObj.get("birth"));
-          baseValues.newOwnerRegZip = buyerObj.get("regZip") ?? "";
-          baseValues.newOwnerRegAddr = buyerObj.get("regAddr") ?? "";
-          baseValues.newOwnerMailZip = buyerObj.get("mailZip") ?? "";
-          baseValues.newOwnerMailAddr = buyerObj.get("mailAddr") ?? "";
-          baseValues.buyerAgentName = buyerObj.get("buyerAgentName") ?? "";
-          baseValues.buyerAgentPhone = buyerObj.get("buyerAgentPhone") ?? "";
-          baseValues.referrerName2 = buyerObj.get("referrerName2") ?? "";
-          baseValues.referrerPhone2 = buyerObj.get("referrerPhone2") ?? "";
-          baseValues.salesmanName = buyerObj.get("salesmanName") ?? "";
-          baseValues.salesCommissionPct = (
+          (baseValues as any).handoverDate = toDateInput(
+            buyerObj.get("handoverDate")
+          );
+          (baseValues as any).newOwnerIdNo = buyerObj.get("idNo") ?? "";
+          (baseValues as any).newOwnerBirth = toDateInput(
+            buyerObj.get("birth")
+          );
+          (baseValues as any).newOwnerRegZip = buyerObj.get("regZip") ?? "";
+          (baseValues as any).newOwnerRegAddr = buyerObj.get("regAddr") ?? "";
+          (baseValues as any).newOwnerMailZip = buyerObj.get("mailZip") ?? "";
+          (baseValues as any).newOwnerMailAddr = buyerObj.get("mailAddr") ?? "";
+          (baseValues as any).buyerAgentName =
+            buyerObj.get("buyerAgentName") ?? "";
+          (baseValues as any).buyerAgentPhone =
+            buyerObj.get("buyerAgentPhone") ?? "";
+          (baseValues as any).referrerName2 =
+            buyerObj.get("referrerName2") ?? "";
+          (baseValues as any).referrerPhone2 =
+            buyerObj.get("referrerPhone2") ?? "";
+          (baseValues as any).salesmanName = buyerObj.get("salesmanName") ?? "";
+          (baseValues as any).salesCommissionPct = (
             buyerObj.get("salesCommissionPct") ?? ""
           ).toString();
-          baseValues.salesMode = buyerObj.get("salesMode") ?? "";
-          baseValues.preferredShop = buyerObj.get("preferredShop") ?? "";
-          baseValues.newOwnerNote = buyerObj.get("note") ?? "";
+          (baseValues as any).salesMode = buyerObj.get("salesMode") ?? "";
+          (baseValues as any).preferredShop =
+            buyerObj.get("preferredShop") ?? "";
+          (baseValues as any).newOwnerNote = buyerObj.get("note") ?? "";
         } else {
           setNewOwnerId(null);
         }
 
-        /* NEW: payments / receipts prefill */
+        // payments / receipts / fees (unchanged)
         const paymentsRaw = (o.get("payments") as any[]) || [];
-        baseValues.payments = paymentsRaw.map((p) => ({
+        (baseValues as any).payments = paymentsRaw.map((p) => ({
           date: toDateStr(p?.date),
           amount: p?.amount ?? "",
           cashOrCheck: p?.cashOrCheck === "票" ? "票" : "現",
@@ -476,7 +466,7 @@ function InventoryNewContent() {
         }));
 
         const receiptsRaw = (o.get("receipts") as any[]) || [];
-        baseValues.receipts = receiptsRaw.map((r) => ({
+        (baseValues as any).receipts = receiptsRaw.map((r) => ({
           date: toDateStr(r?.date),
           amount: r?.amount ?? "",
           cashOrCheck: r?.cashOrCheck === "票" ? "票" : "現",
@@ -485,7 +475,7 @@ function InventoryNewContent() {
         }));
 
         const feesRaw = (o.get("fees") as any[]) || [];
-        baseValues.fees = feesRaw.map((f) => ({
+        (baseValues as any).fees = feesRaw.map((f) => ({
           date: toDateStr(f?.date),
           item: f?.item ?? "",
           vendor: f?.vendor ?? "",
@@ -495,7 +485,7 @@ function InventoryNewContent() {
           handler: f?.handler ?? "",
         }));
 
-        reset(baseValues);
+        reset(baseValues as FormValues);
       } finally {
         if (alive) setLoading(false);
       }
@@ -531,11 +521,8 @@ function InventoryNewContent() {
     car.set("plateNo", v.plateNo);
     car.set("prevPlateNo", v.prevPlateNo || null);
 
-    // ⬇️ 這 4 行改成「直接存字串或 null」，避免 schema mismatch
+    // IMPORTANT: keep as strings (schema expects String)
     car.set("deliverDate", v.deliverDate || null);
-    car.set("inboundDate", v.inboundDate || null);
-    car.set("promisedDate", v.promisedDate || null);
-    car.set("returnDate", v.returnDate || null);
 
     car.set("style", v.style || null);
     car.set("buyPriceWan", v.buyPriceWan ? Number(v.buyPriceWan) : null);
@@ -558,6 +545,12 @@ function InventoryNewContent() {
     car.set("equipment", v.equipment || null);
     car.set("remark", v.remark || null);
     car.set("condition", v.condition || null);
+
+    // keep as strings
+    car.set("inboundDate", v.inboundDate || null);
+    car.set("promisedDate", v.promisedDate || null);
+    car.set("returnDate", v.returnDate || null);
+
     car.set("disposition", v.disposition || null);
 
     // optional: scope by user
@@ -571,9 +564,7 @@ function InventoryNewContent() {
       await car.save();
       showMessage(carId ? "✅ 基本資料已更新" : "✅ 車輛已建立");
       return;
-    }
-    // Tabs 3 / 5: save Owner pointers (unchanged)
-    else if (tab === ORIGINAL_OWNER_TAB_INDEX) {
+    } else if (tab === ORIGINAL_OWNER_TAB_INDEX) {
       const Owner = Parse.Object.extend("Owner");
       const owner = origOwnerId
         ? Owner.createWithoutData(origOwnerId)
@@ -617,25 +608,23 @@ function InventoryNewContent() {
       return;
     } else if (tab === DOCUMENT_TAB_INDEX) {
       const d = v.document || {};
-
-      // Normalize empty strings -> null (optional but keeps DB clean)
-      const norm = (x: any) => (x === "" || x == null ? null : x);
+      const n = (x: any) => (x === "" || x == null ? null : x);
 
       const docOut = {
-        audioCode: norm(d.audioCode),
-        spareKey: norm(d.spareKey),
-        certOk: norm(d.certOk),
-        license: norm(d.license),
-        application: norm(d.application),
-        transferPaper: norm(d.transferPaper),
-        payoffProof: norm(d.payoffProof),
-        inspectDate: norm(d.inspectDate), // keep as 'YYYY-MM-DD' like other tabs
-        taxCert: norm(d.taxCert),
-        factoryCert: norm(d.factoryCert),
-        copyFlag: norm(d.copyFlag),
-        plate: norm(d.plate),
-        taxStatus: norm(d.taxStatus),
-        remark: norm(d.remark),
+        audioCode: n(d.audioCode),
+        spareKey: n(d.spareKey),
+        certOk: n(d.certOk),
+        license: n(d.license),
+        application: n(d.application),
+        transferPaper: n(d.transferPaper),
+        payoffProof: n(d.payoffProof),
+        inspectDate: n(d.inspectDate), // 'YYYY-MM-DD' string
+        taxCert: n(d.taxCert),
+        factoryCert: n(d.factoryCert),
+        copyFlag: n(d.copyFlag),
+        plate: n(d.plate),
+        taxStatus: n(d.taxStatus),
+        remark: n(d.remark),
       };
 
       car.set("document", docOut);
@@ -678,7 +667,7 @@ function InventoryNewContent() {
 
       const insuranceOut = {
         insuranceType: n(d.insuranceType),
-        expireDate: n(d.expireDate), // keep as 'YYYY-MM-DD' string
+        expireDate: n(d.expireDate), // 'YYYY-MM-DD' string
         insuranceCompany: n(d.insuranceCompany),
         loanCompany: n(d.loanCompany),
         contactName: n(d.contactName),
@@ -686,7 +675,7 @@ function InventoryNewContent() {
         amount: d.amount ? Number(d.amount) : null,
         installments: d.installments ? Number(d.installments) : null,
         baseAmount: d.baseAmount ? Number(d.baseAmount) : null,
-        promissoryNote: n(d.promissoryNote), // "無" | "有"
+        promissoryNote: n(d.promissoryNote),
         personalName: n(d.personalName),
         collection: n(d.collection),
       };
@@ -749,14 +738,13 @@ function InventoryNewContent() {
       return;
     } else if (tab === PAYMENT_TAB_INDEX) {
       const payments = (v.payments || []).map((p) => ({
-        date: p.date || null,
+        date: p.date || null, // keep as string
         amount: p.amount === "" || p.amount == null ? 0 : Number(p.amount),
         cashOrCheck: p.cashOrCheck,
         interestStartDate: p.interestStartDate || null,
         note: p.note || null,
       }));
       car.set("payments", payments);
-
       await car.save();
       showMessage("✅ 已更新付款資料");
       return;
@@ -768,26 +756,21 @@ function InventoryNewContent() {
         exchangeDate: r.exchangeDate || null,
         note: r.note || null,
       }));
-
       car.set("receipts", receipts);
-
       await car.save();
       showMessage("✅ 已更新收款資料");
       return;
     } else if (tab === FEE_TAB_INDEX) {
-      // Map FeeTab rows to a compact, Parse-friendly shape
       const fees = (v.fees || []).map((f) => ({
-        date: f.date || null, // keep as string or null (same as payments/receipts)
+        date: f.date || null,
         item: f.item || null,
         vendor: f.vendor || null,
         amount: f.amount === "" || f.amount == null ? 0 : Number(f.amount),
-        cashOrCheck: f.cashOrCheck, // "現" | "票"
+        cashOrCheck: f.cashOrCheck,
         note: f.note || null,
         handler: f.handler || null,
       }));
-
       car.set("fees", fees);
-
       await car.save();
       showMessage("✅ 已更新費用資料");
       return;
@@ -795,13 +778,6 @@ function InventoryNewContent() {
 
     router.push("/dashboard");
   };
-
-  // UI helpers for Autocomplete values (unchanged)
-  const brandValue = React.useMemo(() => {
-    const id = getValues("brandId");
-    const name = getValues("brandName");
-    return id ? brandOpts.find((o) => o.id === id) ?? null : name || null;
-  }, [brandOpts, getValues("brandId"), getValues("brandName")]);
 
   /* -------------------- render -------------------- */
   return (
@@ -820,7 +796,7 @@ function InventoryNewContent() {
       />
 
       <Container maxWidth="lg" sx={{ pb: 8 }}>
-        {/* ... 上方固定欄位區塊（原樣） ... */}
+        {/* 上方固定欄位 */}
         <Paper
           variant="outlined"
           sx={{
@@ -902,15 +878,15 @@ function InventoryNewContent() {
                     freeSolo
                     forcePopupIcon
                     popupIcon={<ArrowDropDownIcon />}
-                    options={brandOpts} // Option[] = {id, name}
+                    options={brandOpts}
                     loading={brandLoading}
                     value={brandValue as any} // Option | string | null
                     inputValue={field.value ?? ""} // keep input synced with RHF
                     onOpen={() => setBrandInput("")} // show full list on open
                     onInputChange={(_, v) => {
-                      field.onChange(v); // update RHF value
-                      setBrandInput(v); // debounced fetch
-                      setValue("brandId", ""); // reset id while typing
+                      field.onChange(v);
+                      setBrandInput(v);
+                      setValue("brandId", "");
                     }}
                     onChange={(_, v) => {
                       if (typeof v === "string") {
@@ -927,7 +903,6 @@ function InventoryNewContent() {
                         setValue("brandId", "");
                       }
                     }}
-                    // correct matching for Option vs value
                     isOptionEqualToValue={(option, value) => {
                       if (!value) return false;
                       if (typeof value === "string")
@@ -935,7 +910,6 @@ function InventoryNewContent() {
                       return option.id === value.id;
                     }}
                     getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
-                    // show all options when no query; otherwise use default filter
                     filterOptions={(options, state) => {
                       if (!state.inputValue) return options;
                       return options.filter((o) =>
@@ -965,6 +939,7 @@ function InventoryNewContent() {
                               {params.InputProps.endAdornment}
                             </>
                           ),
+                          inputMode: "text",
                         }}
                       />
                     )}
@@ -1021,81 +996,94 @@ function InventoryNewContent() {
               "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015))",
           }}
         >
-          <Box component="form" id="inv-form" onSubmit={handleSubmit(onSubmit)}>
-            <Tabs
-              value={tab}
-              onChange={(_, v) => setTab(v)}
-              variant="scrollable"
-              scrollButtons="auto"
-            >
-              <Tab label="基本" {...a11yProps(0)} />
-              <Tab label="證件" {...a11yProps(1)} />
-              <Tab label="入車" {...a11yProps(2)} />
-              <Tab label="原車主" {...a11yProps(3)} />
-              <Tab label="保險/貸款" {...a11yProps(4)} />
-              <Tab label="新車主" {...a11yProps(5)} />
-              <Tab label="付款" {...a11yProps(6)} />
-              <Tab label="收款" {...a11yProps(7)} />
-              <Tab label="費用" {...a11yProps(8)} />
-            </Tabs>
-
-            <TabPanel value={tab} index={0}>
-              <BasicTab control={control} />
-            </TabPanel>
-
-            <TabPanel value={tab} index={1}>
-              <DocumentTab control={control} />
-            </TabPanel>
-            <TabPanel value={tab} index={2}>
-              <InBoundTab control={control} errors={errors} />
-            </TabPanel>
-
-            <TabPanel value={tab} index={3}>
-              <OriginalOwnerTab control={control} errors={errors} />
-            </TabPanel>
-
-            <TabPanel value={tab} index={4}>
-              <InsuranceTab control={control} errors={errors} />
-            </TabPanel>
-
-            <TabPanel value={tab} index={5}>
-              <NewOwnerTab control={control} errors={errors} />
-            </TabPanel>
-
-            <TabPanel value={tab} index={6}>
-              <PaymentTab control={control} errors={errors} />
-            </TabPanel>
-
-            <TabPanel value={tab} index={7}>
-              <ReceiptTab control={control} errors={errors} />
-            </TabPanel>
-
-            <TabPanel value={tab} index={8}>
-              <FeeTab control={control} errors={errors} />
-            </TabPanel>
-
-            {/* Sticky footer Save */}
+          {/* ✅ Provide RHF context to all tab children */}
+          <FormProvider {...form}>
             <Box
-              sx={{
-                position: "sticky",
-                bottom: 0,
-                p: 2,
-                display: "flex",
-                justifyContent: "flex-end",
-                bgcolor: "background.paper",
-                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-                zIndex: 1,
-              }}
+              component="form"
+              id="inv-form"
+              onSubmit={handleSubmit(onSubmit)}
             >
-              <SaveButton
-                type="submit"
-                variant="contained"
-                disabled={isSubmitting || loading}
+              <Tabs
+                value={tab}
+                onChange={(_, v) => setTab(v)}
+                variant="scrollable"
+                scrollButtons="auto"
               >
-                儲存
-              </SaveButton>
+                <Tab label="基本" {...a11yProps(0)} />
+                <Tab label="證件" {...a11yProps(1)} />
+                <Tab label="入車" {...a11yProps(2)} />
+                <Tab label="原車主" {...a11yProps(3)} />
+                <Tab label="保險/貸款" {...a11yProps(4)} />
+                <Tab label="新車主" {...a11yProps(5)} />
+                <Tab label="付款" {...a11yProps(6)} />
+                <Tab label="收款" {...a11yProps(7)} />
+                <Tab label="費用" {...a11yProps(8)} />
+              </Tabs>
+
+              <TabPanel value={tab} index={0}>
+                <BasicTab control={control} />
+              </TabPanel>
+
+              <TabPanel value={tab} index={1}>
+                <DocumentTab control={control} />
+              </TabPanel>
+
+              <TabPanel value={tab} index={2}>
+                <InBoundTab control={control} errors={errors} />
+              </TabPanel>
+
+              <TabPanel value={tab} index={3}>
+                <OriginalOwnerTab
+                  control={control}
+                  errors={errors}
+                  setValue={setValue}
+                  getValues={getValues}
+                />
+              </TabPanel>
+
+              <TabPanel value={tab} index={4}>
+                <InsuranceTab control={control} errors={errors} />
+              </TabPanel>
+
+              <TabPanel value={tab} index={5}>
+                <NewOwnerTab control={control} errors={errors} />
+              </TabPanel>
+
+              <TabPanel value={tab} index={6}>
+                <PaymentTab control={control} errors={errors} />
+              </TabPanel>
+
+              <TabPanel value={tab} index={7}>
+                <ReceiptTab control={control} errors={errors} />
+              </TabPanel>
+
+              <TabPanel value={tab} index={8}>
+                <FeeTab control={control} errors={errors} />
+              </TabPanel>
+
+              {/* Sticky footer Save */}
+              <Box
+                sx={{
+                  position: "sticky",
+                  bottom: 0,
+                  p: 2,
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  bgcolor: "background.paper",
+                  borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+                  zIndex: 1,
+                }}
+              >
+                <SaveButton
+                  type="submit"
+                  variant="contained"
+                  disabled={isSubmitting || loading}
+                >
+                  儲存
+                </SaveButton>
+              </Box>
             </Box>
-          </Box>
+          </FormProvider>
         </Paper>
       </Container>
 

@@ -1,12 +1,6 @@
 import * as React from "react";
 import { Grid, Box, TextField, Typography, MenuItem } from "@mui/material";
-import {
-  Controller,
-  Control,
-  FieldErrors,
-  useFormContext,
-  useWatch,
-} from "react-hook-form";
+import { Controller, Control, FieldErrors, useWatch } from "react-hook-form";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DATE_TF_PROPS } from "../mui";
@@ -37,22 +31,23 @@ export type OriginalOwnerForm = {
   referrerName: string;
   referrerPhone: string;
   purchasedTransferred: string; // 是/否
-  registeredToName: string; // ← 過戶名下（要自 DB 帶入）
-  procurementMethod: string; // 採購方式（從 DB）
+  registeredToName: string; // ← 過戶名下（自 DB 預設）
+  procurementMethod: string; // 採購方式（自 DB）
   origOwnerNote: string;
 };
 
 export default function OriginalOwnerTab({
   control,
   errors,
+  setValue,
+  getValues,
 }: {
   control: Control<any>;
   errors: FieldErrors<any>;
+  setValue: (name: any, value: any, options?: any) => void;
+  getValues: (name?: any) => any;
 }) {
   const { showMessage } = useCarSnackbar();
-
-  // 取用父層的 setValue/getValues（需要外層用 FormProvider 包住）
-  const { setValue, getValues } = useFormContext();
 
   // 採購方式 options 由 DB 載入（Setting.type = "purchaseMethod"）
   const [procurementMethods, setProcurementMethods] = React.useState<string[]>([
@@ -90,7 +85,7 @@ export default function OriginalOwnerTab({
     let alive = true;
     (async () => {
       try {
-        const names = await loadSettingsType("registeredToName"); // e.g. ["大瑋汽車"] 或多個；取第一個非空
+        const names = await loadSettingsType("registeredToName"); // e.g. ["大瑋汽車", ...]
         if (!alive) return;
 
         const firstNonEmpty =
@@ -98,9 +93,9 @@ export default function OriginalOwnerTab({
         setRegisteredToNameDefault(firstNonEmpty);
 
         // 若表單目前沒有值，才寫入預設值（避免覆蓋使用者的手動輸入）
-        const current = getValues?.("registeredToName");
+        const current = getValues("registeredToName");
         if (!current && firstNonEmpty) {
-          setValue?.("registeredToName", firstNonEmpty, {
+          setValue("registeredToName", firstNonEmpty, {
             shouldDirty: false,
             shouldValidate: true,
           });

@@ -212,8 +212,8 @@ const DEFAULTS = {
     // 保養廠
     maintenanceShop: [],
 
-    // 整備情形 / 狀態
-    reconditionStatus: [
+    // 整備情形
+    condition: [
       "待估",
       "排程",
       "進行中",
@@ -230,8 +230,8 @@ const DEFAULTS = {
       "隔熱紙",
     ],
 
-    // 常用配備（下拉使用）
-    commonEquip: [
+    // 配備
+    equipment: [
       "倒車顯影",
       "盲點偵測(BSD)",
       "ACC主動定速",
@@ -404,7 +404,10 @@ Parse.Cloud.afterLogin(async (request) => {
               sessionToken ? { sessionToken } : {}
             );
           } catch (e) {
-            console.error(`[afterLogin] upsertSetting(${type}, ${name}) failed:`, e);
+            console.error(
+              `[afterLogin] upsertSetting(${type}, ${name}) failed:`,
+              e
+            );
           }
         }
       } catch (e) {
@@ -418,10 +421,6 @@ Parse.Cloud.afterLogin(async (request) => {
     // 不 throw，避免影響登入
   }
 });
-
-
-
-
 
 Parse.Cloud.beforeSave("Brand", async (req) => {
   const o = req.object;
@@ -539,4 +538,3 @@ Parse.Cloud.define("upsertSetting", async (req) => {
   await s.save(null, { useMasterKey: true });
   return { id: s.id, revived: false };
 });
-
