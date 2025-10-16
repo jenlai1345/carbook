@@ -38,4 +38,5 @@ export function getParse() {
   return Parse;
 }
 
-export default Parse;
+const InitializedParse = getParse();
+export default InitializedParse;

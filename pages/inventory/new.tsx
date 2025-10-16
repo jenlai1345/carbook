@@ -573,7 +573,13 @@ function InventoryNewContent() {
     // top fixed fields
     car.set("plateNo", v.plateNo);
     car.set("prevPlateNo", v.prevPlateNo || null);
-    car.set("deliverDate", v.deliverDate ? new Date(v.deliverDate) : null);
+
+    // ⬇️ 這 4 行改成「直接存字串或 null」，避免 schema mismatch
+    car.set("deliverDate", v.deliverDate || null);
+    car.set("inboundDate", v.inboundDate || null);
+    car.set("promisedDate", v.promisedDate || null);
+    car.set("returnDate", v.returnDate || null);
+    
     car.set("style", v.style || null);
     car.set("buyPriceWan", v.buyPriceWan ? Number(v.buyPriceWan) : null);
     car.set("sellPriceWan", v.sellPriceWan ? Number(v.sellPriceWan) : null);
@@ -595,9 +601,6 @@ function InventoryNewContent() {
     car.set("equipment", v.equipment || null);
     car.set("remark", v.remark || null);
     car.set("condition", v.condition || null);
-    car.set("inboundDate", v.inboundDate ? new Date(v.inboundDate) : null);
-    car.set("promisedDate", v.promisedDate ? new Date(v.promisedDate) : null);
-    car.set("returnDate", v.returnDate ? new Date(v.returnDate) : null);
     car.set("disposition", v.disposition || null);
 
     // optional: scope by user
