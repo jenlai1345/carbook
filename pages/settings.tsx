@@ -55,7 +55,7 @@ type CategoryKey =
   | "otherFeeItem"
   | "reconditionStatus"
   | "disposal"
-  | "commonEquip";
+  | "equipment";
 
 const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "brand", label: "廠牌設定" },
@@ -75,7 +75,7 @@ const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "otherFeeItem", label: "其它費用項目設定" },
   { key: "reconditionStatus", label: "整備情形設定" },
   { key: "disposal", label: "處置設定" },
-  { key: "commonEquip", label: "常用配備設定" },
+  { key: "equipment", label: "常用配備設定" },
 ];
 
 type SettingRow = {

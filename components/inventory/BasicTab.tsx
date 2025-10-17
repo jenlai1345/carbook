@@ -20,6 +20,7 @@ type Props = {
 export default function BasicTab({ control }: Props) {
   const { showMessage: _showMessage } = useCarSnackbar(); // underscore to avoid unused warning
 
+  const [equipmentOpts, setEquipmentOpts] = React.useState<string[]>([]);
   const [conditionOpts, setConditionOpts] = React.useState<string[]>([]);
   const [dispositionOpts, setDispositionOpts] = React.useState<string[]>([]);
 
@@ -41,6 +42,17 @@ export default function BasicTab({ control }: Props) {
 
         if (!alive) return;
         setConditionOpts(condList.map((o) => o.get("name")).filter(Boolean));
+
+        // 配備
+        const qEquip = new Parse.Query(Setting);
+        qEquip.equalTo("owner", Parse.User.current());
+        qEquip.equalTo("type", "equipment");
+        qEquip.equalTo("active", true);
+        qEquip.ascending("order").addAscending("name");
+        const equipList = await qEquip.find();
+
+        if (!alive) return;
+        setEquipmentOpts(equipList.map((o) => o.get("name")).filter(Boolean));
 
         // 處置設定
         const qDisp = new Parse.Query(Setting);
@@ -197,10 +209,22 @@ export default function BasicTab({ control }: Props) {
 
         <Grid size={{ xs: 12, md: 10 }}>
           <Controller
-            name={"equipment" as any}
+            name="equipment"
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="配備" multiline fullWidth />
+              <Autocomplete<string, false, false, true>
+                freeSolo
+                forcePopupIcon={true}
+                popupIcon={<ArrowDropDownIcon />}
+                options={equipmentOpts}
+                inputValue={field.value ?? ""}
+                onInputChange={(_e, v) => field.onChange(v ?? "")}
+                value={null}
+                onChange={() => {}}
+                renderInput={(params) => (
+                  <TextField {...params} label="配備" fullWidth />
+                )}
+              />
             )}
           />
         </Grid>

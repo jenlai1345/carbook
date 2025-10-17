@@ -53,7 +53,7 @@ import {
   CarSnackbarProvider,
   useCarSnackbar,
 } from "@/components/CarSnackbarProvider";
-import FeeTab from "@/components/FeeTab";
+import FeeTab from "@/components/inventory/FeeTab";
 import DocumentTab from "@/components/inventory/DocumentTab";
 import InBoundTab from "@/components/inventory/InboundTab";
 import InsuranceTab from "@/components/inventory/InsuranceTab";

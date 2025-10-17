@@ -213,7 +213,7 @@ const DEFAULTS = {
     maintenanceShop: [],
 
     // 整備情形
-    condition: [
+    reconditionStatus: [
       "待估",
       "排程",
       "進行中",
@@ -270,6 +270,9 @@ const DEFAULTS = {
       "廣告費",
       "其他",
     ],
+
+    //處置
+    disposal: [],
 
     // 其它費用項目
     otherFeeItem: ["茶水費", "雜項", "補差額", "折讓", "其他"],
