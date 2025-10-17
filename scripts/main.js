@@ -213,7 +213,7 @@ const DEFAULTS = {
     maintenanceShop: [],
 
     // 整備情形
-    reconditionStatus: [
+    condition: [
       "待估",
       "排程",
       "進行中",
