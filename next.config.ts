@@ -4,6 +4,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   typedRoutes: true,
   eslint: { ignoreDuringBuilds: false },
+  images: {
+    domains: ["parsefiles.back4app.com"],
+  },
 
   webpack(config, { isServer }) {
     // Use the browser build of Parse only on the client bundle

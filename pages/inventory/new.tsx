@@ -192,6 +192,7 @@ function InventoryNewContent() {
       salesMode: "",
       preferredShop: "",
       newOwnerNote: "",
+      isPeer: "否",
 
       payments: [],
       receipts: [],
@@ -241,7 +242,7 @@ function InventoryNewContent() {
         amount: "",
         installments: "",
         baseAmount: "",
-        promissoryNote: "",
+        invoice: "",
         personalName: "",
         collection: "",
       },
@@ -412,7 +413,7 @@ function InventoryNewContent() {
           amount: (ins?.amount ?? "").toString(),
           installments: (ins?.installments ?? "").toString(),
           baseAmount: (ins?.baseAmount ?? "").toString(),
-          promissoryNote: ins?.promissoryNote ?? "",
+          invoice: ins?.invoice ?? "",
           personalName: ins?.personalName ?? "",
           collection: ins?.collection ?? "",
         };
@@ -499,6 +500,7 @@ function InventoryNewContent() {
           (baseValues as any).preferredShop =
             buyerObj.get("preferredShop") ?? "";
           (baseValues as any).newOwnerNote = buyerObj.get("note") ?? "";
+          (baseValues as any).isPeer = buyerObj.get("isPeer") ? "是" : "否";
         } else {
           setNewOwnerId(null);
         }
@@ -726,7 +728,7 @@ function InventoryNewContent() {
         amount: d.amount ? Number(d.amount) : null,
         installments: d.installments ? Number(d.installments) : null,
         baseAmount: d.baseAmount ? Number(d.baseAmount) : null,
-        promissoryNote: n(d.promissoryNote),
+        invoice: n(d.invoice),
         personalName: n(d.personalName),
         collection: n(d.collection),
       };
@@ -777,6 +779,7 @@ function InventoryNewContent() {
       buyer.set("salesMode", v.salesMode || null);
       buyer.set("preferredShop", v.preferredShop || null);
       buyer.set("note", v.newOwnerNote || null);
+      buyer.set("isPeer", v.isPeer === "是"); // 「同行」布林值
       if (u) buyer.set("owner", u);
 
       await buyer.save();

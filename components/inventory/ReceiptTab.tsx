@@ -1,3 +1,4 @@
+// components/inventory/ReceiptTab.tsx
 import * as React from "react";
 import {
   Box,
@@ -12,7 +13,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -27,9 +27,10 @@ import {
 import { useCarSnackbar } from "../CarSnackbarProvider";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
+import RHFTextField from "@/components/RHFTextField";
 
 export type ReceiptItem = {
-  date: string; // 日期 (YYYY-MM-DD)
+  date: string; // YYYY-MM-DD
   amount: number | ""; // 金額
   cashOrCheck: "現" | "票"; // 現/票
   exchangeDate?: string; // 票據日期
@@ -40,7 +41,7 @@ const FIELD = "receipts" as const;
 
 export default function ReceiptTab({
   control,
-  errors, // for signature consistency; not used here
+  errors, // unused, just for signature consistency
 }: {
   control: Control<any>;
   errors: FieldErrors<any>;
@@ -54,14 +55,13 @@ export default function ReceiptTab({
   const [checked, setChecked] = React.useState<Record<number, boolean>>({});
   const { showMessage } = useCarSnackbar();
 
-  // ★ 自動帶入規則：當為「票」且有 date，且 exchangeDate 尚未填，則設定為 date，並顯示 Snackbar
+  // 自動帶入：現/票 = 票 時自動設定票據日期
   React.useEffect(() => {
     rows.forEach((r, i) => {
       const shouldAutofill =
         r?.cashOrCheck === "票" &&
         !!r?.date &&
         (!r?.exchangeDate || r.exchangeDate === "");
-
       if (shouldAutofill) {
         update(i, { ...r, exchangeDate: r.date });
         showMessage(
@@ -153,11 +153,7 @@ export default function ReceiptTab({
                         onChange={(v) =>
                           field.onChange(v ? v.format("YYYY-MM-DD") : "")
                         }
-                        slotProps={{
-                          textField: {
-                            size: "small",
-                          },
-                        }}
+                        slotProps={{ textField: { size: "small" } }}
                       />
                     )}
                   />
@@ -165,44 +161,51 @@ export default function ReceiptTab({
 
                 {/* 金額 */}
                 <TableCell align="right">
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.amount`}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
-                        type="number"
-                        inputProps={{ step: "1", min: "0" }}
-                        fullWidth
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value === "" ? "" : Number(e.target.value)
-                          )
-                        }
-                      />
-                    )}
+                    size="small"
+                    type="text"
+                    fullWidth
+                    inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const cleaned = e.target.value.replace(/\D+/g, "");
+                      (e.target as any).value = cleaned;
+                    }}
+                    onBeforeInput={(e: any) => {
+                      const data = e.data as string | null;
+                      if (data && /\D/.test(data)) e.preventDefault();
+                    }}
+                    onKeyDown={(e) => {
+                      const allow = [
+                        "Backspace",
+                        "Delete",
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "Home",
+                        "End",
+                        "Tab",
+                      ];
+                      if (!allow.includes(e.key) && !/^[0-9]$/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                   />
                 </TableCell>
 
                 {/* 現/票 */}
                 <TableCell>
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.cashOrCheck`}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        select
-                        size="small"
-                        fullWidth
-                        SelectProps={{ native: true }}
-                      >
-                        <option value="現">現</option>
-                        <option value="票">票</option>
-                      </TextField>
-                    )}
-                  />
+                    select
+                    size="small"
+                    fullWidth
+                    SelectProps={{ native: true }}
+                  >
+                    <option value="現">現</option>
+                    <option value="票">票</option>
+                  </RHFTextField>
                 </TableCell>
 
                 {/* 票據日期 */}
@@ -216,11 +219,7 @@ export default function ReceiptTab({
                         onChange={(v) =>
                           field.onChange(v ? v.format("YYYY-MM-DD") : "")
                         }
-                        slotProps={{
-                          textField: {
-                            size: "small",
-                          },
-                        }}
+                        slotProps={{ textField: { size: "small" } }}
                       />
                     )}
                   />
@@ -228,12 +227,11 @@ export default function ReceiptTab({
 
                 {/* 說明 */}
                 <TableCell>
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.note`}
-                    render={({ field }) => (
-                      <TextField {...field} size="small" fullWidth />
-                    )}
+                    size="small"
+                    fullWidth
                   />
                 </TableCell>
 

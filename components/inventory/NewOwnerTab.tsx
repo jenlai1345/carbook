@@ -1,41 +1,47 @@
 // components/NewOwnerTab.tsx
 import * as React from "react";
-import { Grid, Box, TextField, Typography, MenuItem } from "@mui/material";
+import {
+  Box,
+  Typography,
+  MenuItem,
+  FormControl,
+  FormLabel,
+  Grid,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+} from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DATE_TF_PROPS } from "../mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
 import { loadSettingsType } from "@/utils/helpers";
+import RHFTextField from "../RHFTextField";
 
 export type NewOwnerForm = {
   newOwnerName: string;
   newOwnerPhone: string;
-
+  isPeer?: "是" | "否";
   newContractDate: string; // YYYY-MM-DD
   handoverDate: string; // YYYY-MM-DD
   newDealPriceWan: string;
   newCommissionWan: string;
-
   newOwnerIdNo: string;
   newOwnerBirth: string; // YYYY-MM-DD
-
   newOwnerRegAddr: string;
   newOwnerRegZip: string;
   newOwnerMailAddr: string;
   newOwnerMailZip: string;
-
   buyerAgentName: string;
   buyerAgentPhone: string;
   referrerName2: string;
   referrerPhone2: string;
-
-  salesmanName: string; // 銷售員（DB: salesperson）
+  salesmanName: string; // select
   salesCommissionPct: string;
-  salesMode: string; // 銷貨模式（DB: saleStyle）
-  salesMethod?: string; // 銷售方式（DB: salesMethod） ← 新增欄位
-
-  preferredShop: string;
+  salesMode: string; // select
+  salesMethod?: string; // select
+  preferredShop: string; // select
   newOwnerNote: string;
 };
 
@@ -50,9 +56,9 @@ export default function NewOwnerTab({
 
   // DB-driven options
   const [salespersons, setSalespersons] = React.useState<string[]>([""]);
-  const [saleStyles, setSaleStyles] = React.useState<string[]>([""]); // 銷貨模式
-  const [salesMethods, setSalesMethods] = React.useState<string[]>([""]); // 銷售方式
-  const [perferredShops, setPerferredShops] = React.useState<string[]>([""]); // 特約廠
+  const [saleStyles, setSaleStyles] = React.useState<string[]>([""]);
+  const [salesMethods, setSalesMethods] = React.useState<string[]>([""]);
+  const [perferredShops, setPerferredShops] = React.useState<string[]>([""]);
 
   React.useEffect(() => {
     let alive = true;
@@ -85,22 +91,51 @@ export default function NewOwnerTab({
       </Typography>
 
       <Grid container spacing={2}>
-        {/* 新車主名 / 電話 */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Controller
-            name="newOwnerName"
+        {/* 新車主名 / 電話 / 同行（是／否） */}
+        <Grid size={{ xs: 12, md: 5 }}>
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="新車主名" fullWidth />
-            )}
+            name="newOwnerName"
+            label="新車主名"
+            fullWidth
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Controller
+        <Grid size={{ xs: 12, md: 5 }}>
+          <RHFTextField
+            control={control}
             name="newOwnerPhone"
+            label="電話"
+            fullWidth
+          />
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
+          <Controller
+            name="isPeer"
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="電話" fullWidth />
+              <FormControl component="fieldset" fullWidth>
+                <FormLabel component="legend" sx={{ fontSize: 12, mb: 0.5 }}>
+                  同行
+                </FormLabel>
+                <RadioGroup
+                  row
+                  value={field.value ?? "否"}
+                  onChange={(e) =>
+                    field.onChange(e.target.value as "是" | "否")
+                  }
+                >
+                  <FormControlLabel
+                    value="否"
+                    control={<Radio size="small" />}
+                    label="否"
+                  />
+                  <FormControlLabel
+                    value="是"
+                    control={<Radio size="small" />}
+                    label="是"
+                  />
+                </RadioGroup>
+              </FormControl>
             )}
           />
         </Grid>
@@ -139,42 +174,31 @@ export default function NewOwnerTab({
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <Controller
-            name="newDealPriceWan"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="成交價（萬）"
-                inputProps={{ inputMode: "decimal" }}
-                fullWidth
-              />
-            )}
+            name="newDealPriceWan"
+            label="成交價（萬）"
+            fullWidth
+            inputProps={{ inputMode: "decimal" }}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <Controller
-            name="newCommissionWan"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="佣金（萬）"
-                inputProps={{ inputMode: "decimal" }}
-                fullWidth
-              />
-            )}
+            name="newCommissionWan"
+            label="佣金（萬）"
+            fullWidth
+            inputProps={{ inputMode: "decimal" }}
           />
         </Grid>
 
         {/* 身分字號 / 生日 */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Controller
-            name="newOwnerIdNo"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="身分字號" fullWidth />
-            )}
+            name="newOwnerIdNo"
+            label="身分字號"
+            fullWidth
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -196,120 +220,106 @@ export default function NewOwnerTab({
 
         {/* 戶籍地址（郵號 + 地址） */}
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
-            name="newOwnerRegZip"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="戶籍 郵號"
-                inputProps={{ inputMode: "numeric", maxLength: 5 }}
-                fullWidth
-              />
-            )}
+            name="newOwnerRegZip"
+            label="戶籍 郵號"
+            fullWidth
+            inputProps={{ inputMode: "numeric", maxLength: 5 }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 9 }}>
-          <Controller
-            name="newOwnerRegAddr"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="戶籍地址" fullWidth />
-            )}
+            name="newOwnerRegAddr"
+            label="戶籍地址"
+            fullWidth
           />
         </Grid>
 
         {/* 通訊地址（郵號 + 地址） */}
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
-            name="newOwnerMailZip"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="通訊 郵號"
-                inputProps={{ inputMode: "numeric", maxLength: 5 }}
-                fullWidth
-              />
-            )}
+            name="newOwnerMailZip"
+            label="通訊 郵號"
+            fullWidth
+            inputProps={{ inputMode: "numeric", maxLength: 5 }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 9 }}>
-          <Controller
-            name="newOwnerMailAddr"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="通訊地址" fullWidth />
-            )}
+            name="newOwnerMailAddr"
+            label="通訊地址"
+            fullWidth
           />
         </Grid>
 
         {/* 代購人 / 電話 / 介紹人 / 電話 */}
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
+          <RHFTextField
+            control={control}
             name="buyerAgentName"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} label="代購人" fullWidth />
-            )}
+            label="代購人"
+            fullWidth
           />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
+          <RHFTextField
+            control={control}
             name="buyerAgentPhone"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} label="代購人電話" fullWidth />
-            )}
+            label="代購人電話"
+            fullWidth
           />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
+          <RHFTextField
+            control={control}
             name="referrerName2"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} label="介紹人" fullWidth />
-            )}
+            label="介紹人"
+            fullWidth
           />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
-            name="referrerPhone2"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="介紹人電話" fullWidth />
-            )}
+            name="referrerPhone2"
+            label="介紹人電話"
+            fullWidth
           />
         </Grid>
 
-        {/* 銷售員（DB: salesperson） / 銷售佣金比率% / 銷貨模式（DB: saleStyle） */}
+        {/* 銷售員 / 銷售佣金% / 銷貨模式 */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Controller
             name="salesmanName"
             control={control}
             render={({ field }) => (
-              <TextField {...field} select label="銷售員" fullWidth>
+              <RHFTextField
+                {...field}
+                control={control as any}
+                name="salesmanName"
+                label="銷售員"
+                select
+                fullWidth
+              >
                 {salespersons.map((v) => (
                   <MenuItem key={v || "__blank"} value={v}>
                     {v || "（未選）"}
                   </MenuItem>
                 ))}
-              </TextField>
+              </RHFTextField>
             )}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
-          <Controller
-            name="salesCommissionPct"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="銷售佣金比率（%）"
-                inputProps={{ inputMode: "decimal" }}
-                fullWidth
-              />
-            )}
+            name="salesCommissionPct"
+            label="銷售獎金比（%）"
+            fullWidth
+            inputProps={{ inputMode: "decimal" }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
@@ -317,58 +327,80 @@ export default function NewOwnerTab({
             name="salesMode"
             control={control}
             render={({ field }) => (
-              <TextField {...field} select label="銷貨模式" fullWidth>
+              <RHFTextField
+                {...field}
+                control={control as any}
+                name="salesMode"
+                label="銷貨模式"
+                select
+                fullWidth
+              >
                 {saleStyles.map((v) => (
                   <MenuItem key={v || "__blank"} value={v}>
                     {v || "（未選）"}
                   </MenuItem>
                 ))}
-              </TextField>
+              </RHFTextField>
             )}
           />
         </Grid>
 
-        {/* 銷售方式（DB: salesMethod） */}
+        {/* 特約廠 */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Controller
-            name="salesMethod"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} select label="銷售方式" fullWidth>
-                {salesMethods.map((v) => (
-                  <MenuItem key={v || "__blank"} value={v}>
-                    {v || "（未選）"}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-          />
-        </Grid>
-
-        <Grid size={{ xs: 12 }}>
           <Controller
             name="preferredShop"
             control={control}
             render={({ field }) => (
-              <TextField {...field} select label="特約廠" fullWidth>
+              <RHFTextField
+                {...field}
+                control={control as any}
+                name="preferredShop"
+                label="特約廠"
+                select
+                fullWidth
+              >
                 {perferredShops.map((v) => (
                   <MenuItem key={v || "__blank"} value={v}>
                     {v || "（未選）"}
                   </MenuItem>
                 ))}
-              </TextField>
+              </RHFTextField>
+            )}
+          />
+        </Grid>
+
+        {/* 銷售方式 */}
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Controller
+            name="salesMethod"
+            control={control}
+            render={({ field }) => (
+              <RHFTextField
+                {...field}
+                control={control as any}
+                name="salesMethod"
+                label="銷售方式"
+                select
+                fullWidth
+              >
+                {salesMethods.map((v) => (
+                  <MenuItem key={v || "__blank"} value={v}>
+                    {v || "（未選）"}
+                  </MenuItem>
+                ))}
+              </RHFTextField>
             )}
           />
         </Grid>
 
         {/* 備註 */}
-        <Grid size={{ xs: 12 }}>
-          <Controller
-            name="newOwnerNote"
+        <Grid size={{ xs: 12, md: 4 }}>
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="備註" multiline fullWidth />
-            )}
+            name="newOwnerNote"
+            label="備註"
+            multiline
+            fullWidth
           />
         </Grid>
       </Grid>

@@ -107,11 +107,7 @@ export const insuranceSchema = z.object({
     amount: z.string().optional().or(z.literal("")),
     installments: z.string().optional().or(z.literal("")),
     baseAmount: z.string().optional().or(z.literal("")),
-    promissoryNote: z
-      .enum(["無", "有"])
-      .optional()
-      .or(z.literal(""))
-      .default(""),
+    invoice: z.enum(["無", "有"]).optional().or(z.literal("")).default(""),
     personalName: z.string().optional().or(z.literal("")),
     collection: z.string().optional().or(z.literal("")),
   }),
@@ -162,6 +158,7 @@ export const newOwnerSchema = z.object({
   salesMode: z.string().optional().or(z.literal("")),
   preferredShop: z.string().optional().or(z.literal("")),
   newOwnerNote: z.string().optional().or(z.literal("")),
+  isPeer: z.enum(["是", "否"]).default("否"),
 });
 
 /* finance rows */

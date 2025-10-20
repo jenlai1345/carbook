@@ -31,10 +31,11 @@ import dayjs from "dayjs";
 import "dayjs/locale/zh-tw";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Parse from "@/lib/parseClient";
+import RHFTextField from "@/components/RHFTextField";
 
 export type FeeItem = {
-  date: string; // 日期 (YYYY-MM-DD)
-  item: string; // 項目 (如：加油、停車、維修…)
+  date: string; // YYYY-MM-DD
+  item: string; // 項目
   vendor: string; // 廠商
   amount: number | ""; // 金額
   cashOrCheck: "現" | "票"; // 現/票
@@ -63,7 +64,7 @@ async function fetchFeeItemOptions(): Promise<string[]> {
 
 export default function FeeTab({
   control,
-  errors, // 介面一致；此表未使用
+  errors, // 未使用
 }: {
   control: Control<any>;
   errors: FieldErrors<any>;
@@ -88,7 +89,6 @@ export default function FeeTab({
         const opts = await fetchFeeItemOptions();
         if (mounted) setFeeItemOptions(opts);
       } catch (e) {
-        // 可加上你的 Snackbar
         console.error("Load feeItem options failed:", e);
       } finally {
         if (mounted) setLoadingFeeItems(false);
@@ -126,15 +126,15 @@ export default function FeeTab({
       <TableContainer component={Paper} variant="outlined">
         <Table size="small" sx={{ tableLayout: "fixed" }}>
           <colgroup>
-            <col style={{ width: 48 }} /> {/* checkbox */}
-            <col style={{ width: 180 }} /> {/* 日期 */}
-            <col style={{ width: 180 }} /> {/* 項目 (wider) */}
-            <col style={{ width: 140 }} /> {/* 廠商 */}
-            <col style={{ width: 120 }} /> {/* 金額 */}
-            <col style={{ width: 100 }} /> {/* 現/票 */}
-            <col /> {/* 說明 (flex/remaining) */}
-            <col style={{ width: 140 }} /> {/* 經手人 */}
-            <col style={{ width: 56 }} /> {/* 刪除 */}
+            <col style={{ width: 48 }} />
+            <col style={{ width: 180 }} />
+            <col style={{ width: 180 }} />
+            <col style={{ width: 140 }} />
+            <col style={{ width: 120 }} />
+            <col style={{ width: 100 }} />
+            <col />
+            <col style={{ width: 140 }} />
+            <col style={{ width: 56 }} />
           </colgroup>
           <TableHead>
             <TableRow>
@@ -156,15 +156,13 @@ export default function FeeTab({
                 />
               </TableCell>
               <TableCell>日期</TableCell>
-              <TableCell >項目</TableCell>
+              <TableCell>項目</TableCell>
               <TableCell>廠商</TableCell>
               <TableCell>金額</TableCell>
               <TableCell>現/票</TableCell>
               <TableCell>說明</TableCell>
-              <TableCell >經手人</TableCell>
-              <TableCell align="center">
-                刪除
-              </TableCell>
+              <TableCell>經手人</TableCell>
+              <TableCell align="center">刪除</TableCell>
             </TableRow>
           </TableHead>
 
@@ -200,7 +198,7 @@ export default function FeeTab({
                   />
                 </TableCell>
 
-                {/* 項目：Autocomplete + 下拉，來源 Setting(type=feeItem) */}
+                {/* 項目：Autocomplete */}
                 <TableCell>
                   <Controller
                     control={control}
@@ -212,7 +210,6 @@ export default function FeeTab({
                         freeSolo
                         options={feeItemOptions}
                         loading={loadingFeeItems}
-                        // 讓 Autocomplete 以受控方式顯示目前值
                         value={field.value ?? ""}
                         onChange={(_, newValue) => {
                           const v =
@@ -220,14 +217,11 @@ export default function FeeTab({
                               ? newValue
                               : (newValue as string) ?? "";
                           field.onChange(v);
-
-                          // 使用者輸入新字詞後挑選時，加入到 options（僅前端暫存）
                           if (v && !feeItemOptions.includes(v)) {
                             setFeeItemOptions((prev) => [...prev, v]);
                           }
                         }}
                         onInputChange={(_, newInputValue, reason) => {
-                          // 打字時同步到 RHF 欄位（freeSolo）
                           if (reason === "input") {
                             field.onChange(newInputValue);
                           }
@@ -256,76 +250,81 @@ export default function FeeTab({
 
                 {/* 廠商 */}
                 <TableCell>
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.vendor`}
-                    render={({ field }) => (
-                      <TextField {...field} size="small" fullWidth />
-                    )}
+                    size="small"
+                    fullWidth
                   />
                 </TableCell>
 
-                {/* 金額 */}
+                {/* 金額（僅數字） */}
                 <TableCell align="right">
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.amount`}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
-                        type="number"
-                        inputProps={{ step: "1", min: "0" }}
-                        fullWidth
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value === "" ? "" : Number(e.target.value)
-                          )
-                        }
-                      />
-                    )}
+                    size="small"
+                    type="text"
+                    fullWidth
+                    inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const cleaned = e.target.value.replace(/\D+/g, "");
+                      // 重要：直接用 RHF 的 set via event pattern
+                      (e.target as any).value = cleaned;
+                    }}
+                    onBeforeInput={(e: any) => {
+                      const data = e.data as string | null;
+                      if (data && /\D/.test(data)) e.preventDefault();
+                    }}
+                    onKeyDown={(e) => {
+                      const allow = [
+                        "Backspace",
+                        "Delete",
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "Home",
+                        "End",
+                        "Tab",
+                      ];
+                      if (!allow.includes(e.key) && !/^[0-9]$/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                   />
                 </TableCell>
 
                 {/* 現/票 */}
                 <TableCell>
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.cashOrCheck`}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        select
-                        size="small"
-                        fullWidth
-                        SelectProps={{ native: true }}
-                      >
-                        <option value="現">現</option>
-                        <option value="票">票</option>
-                      </TextField>
-                    )}
-                  />
+                    select
+                    size="small"
+                    fullWidth
+                    SelectProps={{ native: true }}
+                  >
+                    <option value="現">現</option>
+                    <option value="票">票</option>
+                  </RHFTextField>
                 </TableCell>
 
                 {/* 說明 */}
                 <TableCell>
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.note`}
-                    render={({ field }) => (
-                      <TextField {...field} size="small" fullWidth />
-                    )}
+                    size="small"
+                    fullWidth
                   />
                 </TableCell>
 
                 {/* 經手人 */}
                 <TableCell>
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.handler`}
-                    render={({ field }) => (
-                      <TextField {...field} size="small" fullWidth />
-                    )}
+                    size="small"
+                    fullWidth
                   />
                 </TableCell>
 

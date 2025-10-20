@@ -3,14 +3,13 @@ import * as React from "react";
 import {
   Box,
   Paper,
-  TextField,
   FormControl,
   FormLabel,
+  Grid,
   RadioGroup,
   FormControlLabel,
   Radio,
   Typography,
-  Grid,
 } from "@mui/material";
 import { Controller, Control } from "react-hook-form";
 import dayjs from "dayjs";
@@ -18,6 +17,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DATE_TF_PROPS } from "../mui";
 import type { FormValues } from "@/schemas/carSchemas";
 import RHFImageUpload from "@/components/RHFImageUpload";
+import RHFTextField from "@/components/RHFTextField";
 
 /** ---------- Document Tab（含圖片上傳） ---------- */
 type Props = { control: Control<FormValues, any, any> };
@@ -28,23 +28,21 @@ export default function DocumentTab({ control }: Props) {
       <Grid container spacing={2}>
         {/* 音響密碼 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Controller
-            name="document.audioCode"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="音響密碼" fullWidth />
-            )}
+            name="document.audioCode"
+            label="音響密碼"
+            fullWidth
           />
         </Grid>
 
         {/* 預備鑰 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Controller
-            name="document.spareKey"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="預備鑰" fullWidth />
-            )}
+            name="document.spareKey"
+            label="預備鑰"
+            fullWidth
           />
         </Grid>
 
@@ -298,17 +296,18 @@ export default function DocumentTab({ control }: Props) {
 
         {/* 備註 */}
         <Grid size={{ xs: 12 }}>
-          <Controller
-            name="document.remark"
+          <RHFTextField
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="備註" fullWidth multiline rows={1} />
-            )}
+            name="document.remark"
+            label="備註"
+            fullWidth
+            multiline
+            rows={1}
           />
         </Grid>
       </Grid>
 
-      {/* 新增：證件圖片上傳 */}
+      {/* 證件圖片上傳 */}
       <Box sx={{ mb: 2, mt: 2 }}>
         <Typography variant="subtitle1" gutterBottom fontWeight={700}>
           證件資料維護

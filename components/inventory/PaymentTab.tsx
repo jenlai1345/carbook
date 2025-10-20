@@ -1,3 +1,4 @@
+// components/inventory/PaymentTab.tsx
 import * as React from "react";
 import {
   Box,
@@ -12,7 +13,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -27,12 +27,13 @@ import {
 import { useCarSnackbar } from "../CarSnackbarProvider";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
+import RHFTextField from "@/components/RHFTextField";
 
 export type PaymentItem = {
-  date: string; // 日期 (YYYY-MM-DD)
+  date: string; // YYYY-MM-DD
   amount: number | ""; // 金額
   cashOrCheck: "現" | "票"; // 現/票
-  interestStartDate?: string; // 利息起算日
+  interestStartDate?: string; // YYYY-MM-DD
   note?: string; // 說明
 };
 
@@ -40,7 +41,7 @@ const FIELD = "payments" as const;
 
 export default function PaymentTab({
   control,
-  errors, // for signature consistency; not used in this table
+  errors, // for signature consistency; not used
 }: {
   control: Control<any>;
   errors: FieldErrors<any>;
@@ -54,17 +55,15 @@ export default function PaymentTab({
   const [checked, setChecked] = React.useState<Record<number, boolean>>({});
   const { showMessage } = useCarSnackbar();
 
-  // 自動帶入規則 + Snackbar 提示
+  // 自動帶入：現/票 = 票 時，利息起算日帶入 日期
   React.useEffect(() => {
     rows.forEach((r, i) => {
       const shouldAutofill =
         r?.cashOrCheck === "票" &&
         !!r?.date &&
         (!r?.interestStartDate || r.interestStartDate === "");
-
       if (shouldAutofill) {
         update(i, { ...r, interestStartDate: r.date });
-        // 2 秒預設，可依需要改第三參數
         showMessage(
           `第 ${i + 1} 筆：已將「利息起算日」自動設為「日期」`,
           "info",
@@ -154,56 +153,61 @@ export default function PaymentTab({
                         onChange={(v) =>
                           field.onChange(v ? v.format("YYYY-MM-DD") : "")
                         }
-                        slotProps={{
-                          textField: {
-                            size: "small",
-                          },
-                        }}
+                        slotProps={{ textField: { size: "small" } }}
                       />
                     )}
                   />
                 </TableCell>
 
-                {/* 金額 */}
+                {/* 金額（數字） */}
                 <TableCell align="right">
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.amount`}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
-                        type="number"
-                        inputProps={{ step: "1", min: "0" }}
-                        fullWidth
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value === "" ? "" : Number(e.target.value)
-                          )
-                        }
-                      />
-                    )}
+                    size="small"
+                    type="text"
+                    fullWidth
+                    // 呼叫數字鍵盤 & 簡易驗證
+                    inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
+                    // 僅允許數字，空字串保留
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const cleaned = e.target.value.replace(/\D+/g, "");
+                      (e.target as any).value = cleaned;
+                    }}
+                    onBeforeInput={(e: any) => {
+                      const data = e.data as string | null;
+                      if (data && /\D/.test(data)) e.preventDefault();
+                    }}
+                    onKeyDown={(e) => {
+                      const allow = [
+                        "Backspace",
+                        "Delete",
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "Home",
+                        "End",
+                        "Tab",
+                      ];
+                      if (!allow.includes(e.key) && !/^[0-9]$/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                   />
                 </TableCell>
 
                 {/* 現/票 */}
                 <TableCell>
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.cashOrCheck`}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        select
-                        size="small"
-                        fullWidth
-                        SelectProps={{ native: true }}
-                      >
-                        <option value="現">現</option>
-                        <option value="票">票</option>
-                      </TextField>
-                    )}
-                  />
+                    select
+                    size="small"
+                    fullWidth
+                    SelectProps={{ native: true }}
+                  >
+                    <option value="現">現</option>
+                    <option value="票">票</option>
+                  </RHFTextField>
                 </TableCell>
 
                 {/* 利息起算日 */}
@@ -217,11 +221,7 @@ export default function PaymentTab({
                         onChange={(v) =>
                           field.onChange(v ? v.format("YYYY-MM-DD") : "")
                         }
-                        slotProps={{
-                          textField: {
-                            size: "small",
-                          },
-                        }}
+                        slotProps={{ textField: { size: "small" } }}
                       />
                     )}
                   />
@@ -229,12 +229,11 @@ export default function PaymentTab({
 
                 {/* 說明 */}
                 <TableCell>
-                  <Controller
+                  <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.note`}
-                    render={({ field }) => (
-                      <TextField {...field} size="small" fullWidth />
-                    )}
+                    size="small"
+                    fullWidth
                   />
                 </TableCell>
 
