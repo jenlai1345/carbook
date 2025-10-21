@@ -45,12 +45,12 @@ export type FeeItem = {
 
 const FIELD = "fees" as const;
 
-/** 讀取 Setting.type = "feeItem" 的選項名稱 */
-async function fetchFeeItemOptions(): Promise<string[]> {
+/** 讀取某一 Setting.type 的「name」清單 */
+async function fetchSettingNamesByType(type: string): Promise<string[]> {
   const Setting = Parse.Object.extend("Setting");
   const q = new Parse.Query(Setting);
   q.equalTo("owner", Parse.User.current());
-  q.equalTo("type", "feeItem");
+  q.equalTo("type", type);
   q.equalTo("active", true);
   q.ascending("order").addAscending("name");
   q.limit(1000);
@@ -60,6 +60,16 @@ async function fetchFeeItemOptions(): Promise<string[]> {
     .map((r) => (r.get("name") ?? "").toString().trim())
     .filter(Boolean);
   return Array.from(new Set(names));
+}
+
+/** 讀取 Setting.type = "feeItem" 的選項名稱 */
+async function fetchFeeItemOptions(): Promise<string[]> {
+  return fetchSettingNamesByType("feeItem");
+}
+
+/** 讀取 Setting.type = "maintenanceShop" 的選項名稱（廠商） */
+async function fetchVendorOptions(): Promise<string[]> {
+  return fetchSettingNamesByType("maintenanceShop");
 }
 
 export default function FeeTab({
@@ -81,6 +91,10 @@ export default function FeeTab({
   const [feeItemOptions, setFeeItemOptions] = React.useState<string[]>([]);
   const [loadingFeeItems, setLoadingFeeItems] = React.useState<boolean>(false);
 
+  // 廠商（maintenanceShop）選項
+  const [vendorOptions, setVendorOptions] = React.useState<string[]>([]);
+  const [loadingVendors, setLoadingVendors] = React.useState<boolean>(false);
+
   React.useEffect(() => {
     let mounted = true;
     (async () => {
@@ -92,6 +106,24 @@ export default function FeeTab({
         console.error("Load feeItem options failed:", e);
       } finally {
         if (mounted) setLoadingFeeItems(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoadingVendors(true);
+        const opts = await fetchVendorOptions();
+        if (mounted) setVendorOptions(opts);
+      } catch (e) {
+        console.error("Load vendor options failed:", e);
+      } finally {
+        if (mounted) setLoadingVendors(false);
       }
     })();
     return () => {
@@ -129,6 +161,7 @@ export default function FeeTab({
             <col style={{ width: 48 }} />
             <col style={{ width: 180 }} />
             <col style={{ width: 180 }} />
+            <col style={{ width: 180 }} /> {/* 廠商欄寬稍微放大 */}
             <col style={{ width: 140 }} />
             <col style={{ width: 120 }} />
             <col style={{ width: 100 }} />
@@ -222,9 +255,7 @@ export default function FeeTab({
                           }
                         }}
                         onInputChange={(_, newInputValue, reason) => {
-                          if (reason === "input") {
-                            field.onChange(newInputValue);
-                          }
+                          if (reason === "input") field.onChange(newInputValue);
                         }}
                         renderInput={(params) => (
                           <TextField
@@ -248,13 +279,51 @@ export default function FeeTab({
                   />
                 </TableCell>
 
-                {/* 廠商 */}
+                {/* 廠商：Autocomplete（maintenanceShop） */}
                 <TableCell>
-                  <RHFTextField
+                  <Controller
                     control={control}
                     name={`${FIELD}.${index}.vendor`}
-                    size="small"
-                    fullWidth
+                    render={({ field }) => (
+                      <Autocomplete
+                        size="small"
+                        fullWidth
+                        freeSolo
+                        options={vendorOptions}
+                        loading={loadingVendors}
+                        value={field.value ?? ""}
+                        onChange={(_, newValue) => {
+                          const v =
+                            typeof newValue === "string"
+                              ? newValue
+                              : (newValue as string) ?? "";
+                          field.onChange(v);
+                          if (v && !vendorOptions.includes(v)) {
+                            setVendorOptions((prev) => [...prev, v]);
+                          }
+                        }}
+                        onInputChange={(_, newInputValue, reason) => {
+                          if (reason === "input") field.onChange(newInputValue);
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="選擇或輸入廠商"
+                            InputProps={{
+                              ...params.InputProps,
+                              endAdornment: (
+                                <>
+                                  {loadingVendors ? (
+                                    <CircularProgress size={16} />
+                                  ) : null}
+                                  {params.InputProps.endAdornment}
+                                </>
+                              ),
+                            }}
+                          />
+                        )}
+                      />
+                    )}
                   />
                 </TableCell>
 
@@ -269,7 +338,6 @@ export default function FeeTab({
                     inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                       const cleaned = e.target.value.replace(/\D+/g, "");
-                      // 重要：直接用 RHF 的 set via event pattern
                       (e.target as any).value = cleaned;
                     }}
                     onBeforeInput={(e: any) => {
