@@ -41,6 +41,7 @@ import {
   deleteCarById,
   setCarStatus,
 } from "../utils/helpers";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 /* -------------------- internal helpers -------------------- */
 function a11yProps(index: number) {
@@ -148,6 +149,7 @@ function CarCard({
   const router = useRouter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const { confirm, setBusy } = useConfirm();
 
   const goEdit = () => {
     router.push({ pathname: "/inventory/new", query: { carId: car.objectId } });
@@ -260,12 +262,27 @@ function CarCard({
           </MenuItem>
         ) : null}
         <MenuItem
-          onClick={(e) => {
-            e.stopPropagation();
-            setAnchorEl(null);
-            onDelete(car);
-          }}
           sx={{ color: "error.main" }}
+          onClick={async (e) => {
+            e.stopPropagation(); // avoid row click
+            setAnchorEl(null); // close the menu first
+
+            const ok = await confirm({
+              title: "確認刪除車輛？",
+              description: "此動作無法復原",
+              confirmText: "刪除",
+              cancelText: "保留",
+              confirmColor: "error",
+            });
+            if (!ok) return;
+
+            try {
+              setBusy(true); // optional: lock dialog if still open
+              await onDelete(car); // your existing delete handler (server + UI)
+            } finally {
+              setBusy(false);
+            }
+          }}
         >
           刪除
         </MenuItem>

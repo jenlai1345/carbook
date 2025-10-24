@@ -35,7 +35,10 @@ import { zhTW as pickersZhTW } from "@mui/x-date-pickers/locales";
 import { getParse } from "../lib/parseClient";
 import Parse from "../lib/parseClient";
 import { upsertBrand, upsertSetting } from "@/lib/settingsUpserts";
+import { useConfirm } from "@/components/ConfirmProvider"; // ✅ added
+
 type PUser = Parse.User<Parse.Attributes>;
+
 // --------- 類型定義與對應 ---------
 type CategoryKey =
   | "brand"
@@ -98,6 +101,8 @@ export default function SettingsPage() {
   const [rows, setRows] = React.useState<SettingRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+
+  const { confirm: openConfirm, setBusy } = useConfirm(); // ✅ useConfirm hook
 
   // 取得目前使用者（client-only）
   const [user, setUser] = React.useState<PUser | null>(null);
@@ -185,7 +190,7 @@ export default function SettingsPage() {
     if (!user) return;
 
     try {
-      const id = editingId ?? data.id ?? undefined; // ← 保留目前正在編輯的 id
+      const id = editingId ?? data.id ?? undefined;
       const name = data.name?.trim();
       if (!name) {
         alert("請輸入名稱");
@@ -193,7 +198,6 @@ export default function SettingsPage() {
       }
 
       if (isBrand) {
-        // 讓品牌也能編輯（依 id 更新；無 id 則新增）
         await upsertBrand({ id, name, active: data.active });
       } else {
         const orderNum =
@@ -201,7 +205,6 @@ export default function SettingsPage() {
             ? Number(data.order)
             : undefined;
 
-        // 傳遞 id + active
         await upsertSetting(current, {
           id,
           name,
@@ -226,31 +229,43 @@ export default function SettingsPage() {
     setValue("active", !!r.active);
   };
 
-  // 刪除（soft delete）
-  const remove = async (id: string) => {
+  // ✅ 硬刪除（真的刪除 Parse 物件）
+  const remove = async (id: string, name?: string) => {
     if (!user) return;
-    if (!confirm("確定刪除？")) return;
+
+    const ok = await openConfirm({
+      title: `確認刪除「${name ?? ""}」？`,
+      description: "此動作無法復原，資料將永久刪除。",
+      confirmText: "刪除",
+      cancelText: "取消",
+      confirmColor: "error",
+    });
+    if (!ok) return;
+
     const sessionToken = user.getSessionToken?.();
     const Parse = getParse();
 
     try {
+      setBusy(true);
+
       if (isBrand) {
         const Brand = Parse.Object.extend("Brand");
         const obj = new Brand();
         obj.id = id;
-        obj.set("active", false);
-        await obj.save(null, { sessionToken }); // 帶使用者 token
+        await obj.destroy({ sessionToken }); // 💥 完全刪除
       } else {
         const Setting = Parse.Object.extend("Setting");
         const obj = new Setting();
         obj.id = id;
-        obj.set("active", false);
-        await obj.save(null, { sessionToken });
+        await obj.destroy({ sessionToken });
       }
+
       await load();
     } catch (e) {
       console.error("[Settings] delete failed:", e);
       alert("刪除失敗");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -438,7 +453,7 @@ export default function SettingsPage() {
                             <IconButton
                               size="small"
                               color="error"
-                              onClick={() => remove(r.id)}
+                              onClick={() => remove(r.id, r.name)} // ✅ updated
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>

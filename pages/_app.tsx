@@ -3,6 +3,7 @@ import type { AppProps } from "next/app";
 import { ThemeProvider, CssBaseline, GlobalStyles } from "@mui/material";
 import theme from "../lib/theme";
 import "../styles/globals.css";
+import { ConfirmProvider } from "@/components/ConfirmProvider";
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -18,7 +19,9 @@ export default function MyApp({ Component, pageProps }: AppProps) {
           },
         }}
       />
-      <Component {...pageProps} />
+      <ConfirmProvider>
+        <Component {...pageProps} />
+      </ConfirmProvider>
     </ThemeProvider>
   );
 }

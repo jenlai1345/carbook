@@ -29,6 +29,7 @@ import { useCarSnackbar } from "../CarSnackbarProvider";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import RHFTextField from "@/components/RHFTextField";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 export type ReceiptItem = {
   date: string; // YYYY-MM-DD
@@ -54,6 +55,7 @@ export default function ReceiptTab({
 
   const rows = (useWatch({ control, name: FIELD }) || []) as ReceiptItem[];
   const [checked, setChecked] = React.useState<Record<number, boolean>>({});
+  const { confirm, setBusy } = useConfirm();
   const { showMessage } = useCarSnackbar();
 
   // 自動帶入：現/票 = 票 時自動設定票據日期
@@ -220,7 +222,20 @@ export default function ReceiptTab({
                 </TableCell>
 
                 <TableCell align="center">
-                  <IconButton onClick={() => remove(index)} size="small">
+                  <IconButton
+                    size="small"
+                    aria-label="刪除"
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: "確認刪除此筆收款？",
+                        description: "刪除後記得儲存才會生效",
+                        confirmText: "刪除",
+                        cancelText: "保留",
+                        confirmColor: "error",
+                      });
+                      if (ok) remove(index);
+                    }}
+                  >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </TableCell>
@@ -244,6 +259,8 @@ export default function ReceiptTab({
         justifyContent="space-between"
         spacing={1.5}
         sx={{ mt: 1 }}
+        paddingLeft={2}
+        paddingRight={2}
       >
         <Stack direction="row" spacing={1}>
           <Button
@@ -255,7 +272,16 @@ export default function ReceiptTab({
             新增
           </Button>
           <Button
-            onClick={deleteChecked}
+            onClick={async () => {
+              const ok = await confirm({
+                title: "確認刪除勾選？",
+                description: "刪除後記得儲存才會生效",
+                confirmText: "刪除",
+                cancelText: "保留",
+                confirmColor: "error",
+              });
+              if (ok) deleteChecked();
+            }}
             startIcon={<DeleteIcon />}
             variant="outlined"
             size="small"

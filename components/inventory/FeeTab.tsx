@@ -33,6 +33,7 @@ import "dayjs/locale/zh-tw";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Parse from "@/lib/parseClient";
 import RHFTextField from "@/components/RHFTextField";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 export type FeeItem = {
   date: string; // YYYY-MM-DD
@@ -95,6 +96,8 @@ export default function FeeTab({
   // 廠商（maintenanceShop）選項
   const [vendorOptions, setVendorOptions] = React.useState<string[]>([]);
   const [loadingVendors, setLoadingVendors] = React.useState<boolean>(false);
+
+  const { confirm, setBusy } = useConfirm();
 
   React.useEffect(() => {
     let mounted = true;
@@ -159,16 +162,15 @@ export default function FeeTab({
       <TableContainer component={Paper} variant="outlined">
         <Table size="small" sx={{ tableLayout: "fixed" }}>
           <colgroup>
-            <col style={{ width: 48 }} />
-            <col style={{ width: 180 }} />
-            <col style={{ width: 180 }} />
-            <col style={{ width: 180 }} /> {/* 廠商欄寬稍微放大 */}
-            <col style={{ width: 140 }} />
-            <col style={{ width: 120 }} />
-            <col style={{ width: 100 }} />
-            <col />
-            <col style={{ width: 140 }} />
-            <col style={{ width: 56 }} />
+            <col style={{ width: 48 }} /> {/* checkbox 欄寬 */}
+            <col style={{ width: 180 }} /> {/* 日期欄寬 */}
+            <col style={{ width: 170 }} /> {/* 項目欄寬 */}
+            <col style={{ width: 170 }} /> {/* 廠商欄寬稍微放大 */}
+            <col style={{ width: 150 }} /> {/* 金額欄寬 */}
+            <col style={{ width: 100 }} /> {/* 現/票欄寬 */}
+            <col style={{ width: 120 }} /> {/* 說明欄寬 */}
+            <col style={{ width: 120 }} /> {/* 經手人欄寬 */}
+            <col style={{ width: 60 }} />
           </colgroup>
           <TableHead>
             <TableRow>
@@ -328,7 +330,7 @@ export default function FeeTab({
                   />
                 </TableCell>
 
-                {/* 金額（數字輸入，與保險頁一致） */}
+                {/* 金額 */}
                 <TableCell align="right">
                   <RHFTextField
                     control={control}
@@ -341,10 +343,6 @@ export default function FeeTab({
                       endAdornment: (
                         <InputAdornment position="end">元</InputAdornment>
                       ),
-                    }}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      const v = e.target.value;
-                      (e.target as any).value = v;
                     }}
                   />
                 </TableCell>
@@ -385,7 +383,20 @@ export default function FeeTab({
                 </TableCell>
 
                 <TableCell align="center">
-                  <IconButton onClick={() => remove(index)} size="small">
+                  <IconButton
+                    size="small"
+                    aria-label="刪除"
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: "確認刪除此筆費用？",
+                        description: "刪除後記得儲存才會生效。",
+                        confirmText: "刪除",
+                        cancelText: "保留",
+                        confirmColor: "error",
+                      });
+                      if (ok) remove(index);
+                    }}
+                  >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </TableCell>
@@ -409,6 +420,8 @@ export default function FeeTab({
         justifyContent="space-between"
         spacing={1.5}
         sx={{ mt: 1 }}
+        paddingLeft={2}
+        paddingRight={2}
       >
         <Stack direction="row" spacing={1}>
           <Button
@@ -420,7 +433,16 @@ export default function FeeTab({
             新增
           </Button>
           <Button
-            onClick={deleteChecked}
+            onClick={async () => {
+              const ok = await confirm({
+                title: "確認刪除勾選？",
+                description: "刪除後記得儲存才會生效",
+                confirmText: "刪除",
+                cancelText: "保留",
+                confirmColor: "error",
+              });
+              if (ok) deleteChecked();
+            }}
             startIcon={<DeleteIcon />}
             variant="outlined"
             size="small"
