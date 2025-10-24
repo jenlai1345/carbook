@@ -46,9 +46,9 @@ export const documentDetailSchema = z.object({
   audioCode: z.string().optional().or(z.literal("")),
   spareKey: z.string().optional().or(z.literal("")),
   certOk: z.enum(["無", "有", "缺"]).optional().or(z.literal("")).default(""),
-  license: z.enum(["無", "有"]).optional().or(z.literal("")).default(""),
+  license: z.enum(["無", "有", "缺"]).optional().or(z.literal("")).default(""),
   application: z
-    .enum(["無", "有", "缺(米)"]) // ← screenshot uses 米
+    .enum(["無", "有", "缺"])
     .optional()
     .or(z.literal(""))
     .default(""),
@@ -61,13 +61,17 @@ export const documentDetailSchema = z.object({
     .or(z.literal(""))
     .default(""),
   factoryCert: z
-    .enum(["無", "有", "缺(△)"])
+    .enum(["無", "有", "缺"])
     .optional()
     .or(z.literal(""))
     .default(""),
   copyFlag: z.enum(["無", "有"]).optional().or(z.literal("")).default(""),
-  plate: z.enum(["無", "有", "缺(Φ)"]).optional().or(z.literal("")).default(""),
-  taxStatus: z.enum(["已繳", "缺"]).optional().or(z.literal("")).default(""),
+  plate: z.enum(["無", "有", "缺"]).optional().or(z.literal("")).default(""),
+  taxStatus: z
+    .enum(["已繳", "未稅", "牌照", "燃料"])
+    .optional()
+    .or(z.literal(""))
+    .default(""),
   remark: z.string().optional().or(z.literal("")),
   images: z.array(uploadedImageSchema).optional().default([]),
 });
@@ -159,6 +163,11 @@ export const newOwnerSchema = z.object({
   preferredShop: z.string().optional().or(z.literal("")),
   newOwnerNote: z.string().optional().or(z.literal("")),
   isPeer: z.enum(["是", "否"]).default("否"),
+  newOwnerEmail: z
+    .string()
+    .email("Email 格式不正確")
+    .optional()
+    .or(z.literal("")),
 });
 
 /* finance rows */

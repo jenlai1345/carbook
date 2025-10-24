@@ -172,13 +172,12 @@ function CarCard({
           <CardMedia
             component="img"
             image={car.coverUrl}
-            alt={`${car.brand ?? ""} ${car.seriesCategory ?? car.model ?? ""}`}
+            alt={`${car.brand ?? ""} ${car.style ?? ""}`}
             sx={{ height: 160, objectFit: "cover" }}
           />
         )}
         <CardContent sx={{ flexGrow: 1, width: "100%" }}>
           <Stack spacing={0.5}>
-            {/* Header row WITH actions inside, so nothing overlaps */}
             <Stack
               direction="row"
               spacing={1}
@@ -186,16 +185,15 @@ function CarCard({
               justifyContent="space-between"
             >
               <Typography variant="subtitle1" fontWeight={700} noWrap>
-                {car.brand ?? "—"} {car.model ?? ""}
+                {car.brand ?? "—"} {car.style ?? "—"}
               </Typography>
-
               <Stack direction="row" spacing={1} alignItems="center">
                 <StatusChip status={car.status} />
                 <IconButton
                   size="small"
                   aria-label="actions"
                   onClick={(e) => {
-                    e.stopPropagation(); // don't trigger CardActionArea
+                    e.stopPropagation();
                     setAnchorEl(e.currentTarget);
                   }}
                 >
@@ -204,23 +202,29 @@ function CarCard({
               </Stack>
             </Stack>
 
-            <Typography variant="body2" color="text.secondary">
-              {car.factoryYM ?? car.plateYM ?? "—"} · {car.color ?? "—"}
-            </Typography>
+            {/* 車號 */}
             <Typography variant="body2" color="text.secondary" noWrap>
-              VIN: {car.vin ?? "—"}
+              車號：{(car as any).carNo ?? (car as any).plateNo ?? "—"}
             </Typography>
+
+            {/* 出廠日 / 領牌日 / 顏色 */}
             <Typography variant="body2" color="text.secondary" noWrap>
-              引擎號: {car.engineNo ?? "—"}
+              {car.factoryYM ?? "—"} / {car.plateYM ?? "—"} / {car.color ?? "—"}
             </Typography>
-            {car.location && (
-              <Typography variant="body2" color="text.secondary" noWrap>
-                門市：{car.location}
-              </Typography>
-            )}
-            {typeof car.sellPriceWan === "number" && (
+
+            {/* 車身碼（VIN） */}
+            <Typography variant="body2" color="text.secondary" noWrap>
+              車身碼：{car.vin ?? "—"}
+            </Typography>
+
+            {/* 進（萬） */}
+            {typeof (car as any).buyPriceWan === "number" ? (
               <Typography variant="h6" sx={{ pt: 0.5 }}>
-                {car.sellPriceWan.toLocaleString()} 萬
+                {(car as any).buyPriceWan.toLocaleString()} 萬
+              </Typography>
+            ) : (
+              <Typography variant="h6" sx={{ pt: 0.5, color: "text.disabled" }}>
+                —
               </Typography>
             )}
           </Stack>

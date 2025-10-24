@@ -5,6 +5,7 @@ import {
   Button,
   Checkbox,
   IconButton,
+  InputAdornment,
   Paper,
   Stack,
   Table,
@@ -159,36 +160,19 @@ export default function ReceiptTab({
                   />
                 </TableCell>
 
-                {/* 金額 */}
+                {/* 金額（與其他頁一致） */}
                 <TableCell align="right">
                   <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.amount`}
                     size="small"
-                    type="text"
+                    type="number"
                     fullWidth
-                    inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      const cleaned = e.target.value.replace(/\D+/g, "");
-                      (e.target as any).value = cleaned;
-                    }}
-                    onBeforeInput={(e: any) => {
-                      const data = e.data as string | null;
-                      if (data && /\D/.test(data)) e.preventDefault();
-                    }}
-                    onKeyDown={(e) => {
-                      const allow = [
-                        "Backspace",
-                        "Delete",
-                        "ArrowLeft",
-                        "ArrowRight",
-                        "Home",
-                        "End",
-                        "Tab",
-                      ];
-                      if (!allow.includes(e.key) && !/^[0-9]$/.test(e.key)) {
-                        e.preventDefault();
-                      }
+                    inputProps={{ step: "1", min: "0", inputMode: "numeric" }}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">元</InputAdornment>
+                      ),
                     }}
                   />
                 </TableCell>

@@ -317,7 +317,7 @@ async function createExampleCarForUser(user) {
     const car = new Car();
     car.set("owner", user);
     car.set("isExample", true);
-    car.set("model", "(範例)Corolla Cross");
+    car.set("model", "2023");
     car.set("status", "active");
     car.set("buyPriceWan", 63);
     car.set("sellPriceWan", 68);
@@ -329,7 +329,8 @@ async function createExampleCarForUser(user) {
     car.set("displacementCc", 1798);
     car.set("vin", "JTR20912FG094J");
     car.set("factoryYM", "2024-06");
-    car.set("style", "SUV");
+    car.set("plateYM", "2024-12");
+    car.set("style", "Corolla Cross");
     car.set("seriesCategory", "日系");
     if (toyota) car.set("brand", toyota);
 

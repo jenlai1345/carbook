@@ -17,6 +17,7 @@ import {
   Typography,
   CircularProgress,
   Autocomplete,
+  InputAdornment,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -327,36 +328,23 @@ export default function FeeTab({
                   />
                 </TableCell>
 
-                {/* 金額（僅數字） */}
+                {/* 金額（數字輸入，與保險頁一致） */}
                 <TableCell align="right">
                   <RHFTextField
                     control={control}
                     name={`${FIELD}.${index}.amount`}
                     size="small"
-                    type="text"
+                    type="number"
                     fullWidth
-                    inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
+                    inputProps={{ step: "1", min: "0", inputMode: "numeric" }}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">元</InputAdornment>
+                      ),
+                    }}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      const cleaned = e.target.value.replace(/\D+/g, "");
-                      (e.target as any).value = cleaned;
-                    }}
-                    onBeforeInput={(e: any) => {
-                      const data = e.data as string | null;
-                      if (data && /\D/.test(data)) e.preventDefault();
-                    }}
-                    onKeyDown={(e) => {
-                      const allow = [
-                        "Backspace",
-                        "Delete",
-                        "ArrowLeft",
-                        "ArrowRight",
-                        "Home",
-                        "End",
-                        "Tab",
-                      ];
-                      if (!allow.includes(e.key) && !/^[0-9]$/.test(e.key)) {
-                        e.preventDefault();
-                      }
+                      const v = e.target.value;
+                      (e.target as any).value = v;
                     }}
                   />
                 </TableCell>

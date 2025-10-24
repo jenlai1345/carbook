@@ -82,17 +82,30 @@ export default function BasicTab({ control }: Props) {
           <Controller
             name={"factoryYM" as any}
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="出廠（年/月）"
-                views={["year", "month"]}
-                value={
-                  field.value ? (dayjs(`${field.value}-01`) as Dayjs) : null
-                }
-                onChange={(v) => field.onChange(v ? v.format("YYYY-MM") : "")}
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            render={({ field }) => {
+              const refDate = field.value
+                ? dayjs(`${field.value}-01`)
+                : dayjs("2000-01-01");
+              return (
+                <DatePicker
+                  label="出廠（年/月）"
+                  openTo="year"
+                  views={["year", "month"]}
+                  format="YYYY/MM"
+                  value={
+                    field.value ? (dayjs(`${field.value}-01`) as Dayjs) : null
+                  }
+                  referenceDate={refDate}
+                  onChange={(v) => field.onChange(v ? v.format("YYYY-MM") : "")}
+                  slotProps={{
+                    textField: {
+                      ...DATE_TF_PROPS,
+                      inputProps: { placeholder: "YYYY/MM" },
+                    },
+                  }}
+                />
+              );
+            }}
           />
         </Grid>
 
@@ -101,17 +114,30 @@ export default function BasicTab({ control }: Props) {
           <Controller
             name={"plateYM" as any}
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="領牌（年/月）"
-                views={["year", "month"]}
-                value={
-                  field.value ? (dayjs(`${field.value}-01`) as Dayjs) : null
-                }
-                onChange={(v) => field.onChange(v ? v.format("YYYY-MM") : "")}
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            render={({ field }) => {
+              const refDate = field.value
+                ? dayjs(`${field.value}-01`)
+                : dayjs("2000-01-01");
+              return (
+                <DatePicker
+                  label="領牌（年/月）"
+                  openTo="year"
+                  views={["year", "month"]}
+                  format="YYYY/MM"
+                  value={
+                    field.value ? (dayjs(`${field.value}-01`) as Dayjs) : null
+                  }
+                  referenceDate={refDate}
+                  onChange={(v) => field.onChange(v ? v.format("YYYY-MM") : "")}
+                  slotProps={{
+                    textField: {
+                      ...DATE_TF_PROPS,
+                      inputProps: { placeholder: "YYYY/MM" },
+                    },
+                  }}
+                />
+              );
+            }}
           />
         </Grid>
 

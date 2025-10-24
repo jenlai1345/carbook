@@ -22,6 +22,7 @@ import RHFTextField from "../RHFTextField";
 export type NewOwnerForm = {
   newOwnerName: string;
   newOwnerPhone: string;
+  email?: string; // ← add this
   isPeer?: "是" | "否";
   newContractDate: string; // YYYY-MM-DD
   handoverDate: string; // YYYY-MM-DD
@@ -91,8 +92,8 @@ export default function NewOwnerTab({
       </Typography>
 
       <Grid container spacing={2}>
-        {/* 新車主名 / 電話 / 同行（是／否） */}
-        <Grid size={{ xs: 12, md: 5 }}>
+        {/* 新車主名 / 電話 / Email / 同行（是／否） */}
+        <Grid size={{ xs: 6, md: 2 }}>
           <RHFTextField
             control={control}
             name="newOwnerName"
@@ -100,7 +101,8 @@ export default function NewOwnerTab({
             fullWidth
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 5 }}>
+
+        <Grid size={{ xs: 6, md: 2 }}>
           <RHFTextField
             control={control}
             name="newOwnerPhone"
@@ -108,7 +110,19 @@ export default function NewOwnerTab({
             fullWidth
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 2 }}>
+
+        <Grid size={{ xs: 6, md: 3 }}>
+          <RHFTextField
+            control={control}
+            name="newOwnerEmail"
+            label="Email"
+            type="email"
+            fullWidth
+            inputProps={{ inputMode: "email", autoComplete: "email" }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 6, md: 2 }}>
           <Controller
             name="isPeer"
             control={control}
@@ -141,7 +155,7 @@ export default function NewOwnerTab({
         </Grid>
 
         {/* 合約日期 / 交車日期 / 成交價（萬） / 佣金（萬） */}
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 6, md: 3 }}>
           <Controller
             name="newContractDate"
             control={control}
@@ -157,7 +171,7 @@ export default function NewOwnerTab({
             )}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Controller
             name="handoverDate"
             control={control}
@@ -173,7 +187,7 @@ export default function NewOwnerTab({
             )}
           />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <RHFTextField
             control={control}
             name="newDealPriceWan"
@@ -182,7 +196,7 @@ export default function NewOwnerTab({
             inputProps={{ inputMode: "decimal" }}
           />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <RHFTextField
             control={control}
             name="newCommissionWan"

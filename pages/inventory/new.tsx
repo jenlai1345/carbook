@@ -173,6 +173,7 @@ function InventoryNewContent() {
 
       newOwnerName: "",
       newOwnerPhone: "",
+      newOwnerEmail: "",
       newContractDate: "",
       newDealPriceWan: "",
       newCommissionWan: "",
@@ -464,9 +465,10 @@ function InventoryNewContent() {
           setNewOwnerId(buyerObj.id ?? "");
           (baseValues as any).newOwnerName = buyerObj.get("name") ?? "";
           (baseValues as any).newOwnerPhone = buyerObj.get("phone") ?? "";
-          (baseValues as any).newContractDate = toDateInput(
-            buyerObj.get("contractDate")
-          );
+          ((baseValues as any).newOwnerEmail = o?.get("newOwnerEmail") ?? ""),
+            ((baseValues as any).newContractDate = toDateInput(
+              buyerObj.get("contractDate")
+            ));
           (baseValues as any).newDealPriceWan = (
             buyerObj.get("dealPriceWan") ?? ""
           ).toString();
@@ -656,7 +658,6 @@ function InventoryNewContent() {
 
       if (!origOwnerId) setOrigOwnerId(owner.id);
       showMessage(origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立");
-      router.push("/dashboard");
       return;
     } else if (tab === DOCUMENT_TAB_INDEX) {
       const d = v.document || {};
@@ -784,11 +785,11 @@ function InventoryNewContent() {
 
       await buyer.save();
       car.set("newOwner", buyer);
+      car.set("newOwnerEmail", v.newOwnerEmail || "");
       await car.save();
 
       if (!newOwnerId) setNewOwnerId(buyer.id);
       showMessage(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
-      router.push("/dashboard");
       return;
     } else if (tab === PAYMENT_TAB_INDEX) {
       const payments = (v.payments || []).map((p) => ({

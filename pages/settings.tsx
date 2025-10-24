@@ -183,7 +183,9 @@ export default function SettingsPage() {
   // 新增或更新
   const onSubmit = handleSubmit(async (data) => {
     if (!user) return;
+
     try {
+      const id = editingId ?? data.id ?? undefined; // ← 保留目前正在編輯的 id
       const name = data.name?.trim();
       if (!name) {
         alert("請輸入名稱");
@@ -191,13 +193,21 @@ export default function SettingsPage() {
       }
 
       if (isBrand) {
-        await upsertBrand(name); // 你自己的 API，內部可用 sessionToken 驗證
+        // 讓品牌也能編輯（依 id 更新；無 id 則新增）
+        await upsertBrand({ id, name, active: data.active });
       } else {
         const orderNum =
           data.order !== "" && data.order !== undefined
             ? Number(data.order)
             : undefined;
-        await upsertSetting(current, name, orderNum);
+
+        // 傳遞 id + active
+        await upsertSetting(current, {
+          id,
+          name,
+          order: orderNum,
+          active: data.active,
+        });
       }
 
       await load();

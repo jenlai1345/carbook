@@ -78,7 +78,7 @@ export default function DocumentTab({ control }: Props) {
               control={control}
               render={({ field }) => (
                 <RadioGroup row {...field}>
-                  {["無", "有"].map((opt) => (
+                  {["無", "有", "缺"].map((opt) => (
                     <FormControlLabel
                       key={opt}
                       value={opt}
@@ -92,16 +92,16 @@ export default function DocumentTab({ control }: Props) {
           </FormControl>
         </Grid>
 
-        {/* 申請書（缺(米)） */}
+        {/* 牌照登記書 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <FormControl component="fieldset">
-            <FormLabel>申請書</FormLabel>
+            <FormLabel>牌照登記書</FormLabel>
             <Controller
               name="document.application"
               control={control}
               render={({ field }) => (
                 <RadioGroup row {...field}>
-                  {["無", "有", "缺(米)"].map((opt) => (
+                  {["無", "有", "缺"].map((opt) => (
                     <FormControlLabel
                       key={opt}
                       value={opt}
@@ -211,7 +211,7 @@ export default function DocumentTab({ control }: Props) {
               control={control}
               render={({ field }) => (
                 <RadioGroup row {...field}>
-                  {["無", "有", "缺(△)"].map((opt) => (
+                  {["無", "有", "缺"].map((opt) => (
                     <FormControlLabel
                       key={opt}
                       value={opt}
@@ -225,10 +225,10 @@ export default function DocumentTab({ control }: Props) {
           </FormControl>
         </Grid>
 
-        {/* 影本 */}
+        {/* 身分證影本 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <FormControl component="fieldset">
-            <FormLabel>影本</FormLabel>
+            <FormLabel>身分證影本</FormLabel>
             <Controller
               name="document.copyFlag"
               control={control}
@@ -248,16 +248,16 @@ export default function DocumentTab({ control }: Props) {
           </FormControl>
         </Grid>
 
-        {/* 牌照 */}
+        {/* 鐵牌 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <FormControl component="fieldset">
-            <FormLabel>牌照</FormLabel>
+            <FormLabel>鐵牌</FormLabel>
             <Controller
               name="document.plate"
               control={control}
               render={({ field }) => (
                 <RadioGroup row {...field}>
-                  {["無", "有", "缺(Φ)"].map((opt) => (
+                  {["無", "有", "缺"].map((opt) => (
                     <FormControlLabel
                       key={opt}
                       value={opt}
@@ -280,7 +280,7 @@ export default function DocumentTab({ control }: Props) {
               control={control}
               render={({ field }) => (
                 <RadioGroup row {...field}>
-                  {["已繳", "缺"].map((opt) => (
+                  {["已繳", "未稅", "牌照", "燃料"].map((opt) => (
                     <FormControlLabel
                       key={opt}
                       value={opt}
