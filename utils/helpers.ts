@@ -1,4 +1,5 @@
 // utils/helpers.ts
+import { TW_ZIP3_TO_PREFIX } from "@/data/TW_ZIP3_TO_PREFIX";
 import Parse from "../lib/parseClient";
 import type { Car, CarStatus } from "../models";
 
@@ -191,3 +192,18 @@ export async function setCarStatus(
   o.set("status", status);
   await o.save(null, { useMasterKey: false });
 }
+
+export const applyZipPrefix = (zip?: string, addr?: string) => {
+  const z3 = (zip ?? "").slice(0, 3);
+  const prefix = TW_ZIP3_TO_PREFIX[z3];
+  if (!prefix) return addr ?? "";
+
+  const curr = (addr ?? "").trim();
+  const knownPrefixes = Object.values(TW_ZIP3_TO_PREFIX);
+  const existing = knownPrefixes.find((p) => curr.startsWith(p));
+  if (existing) {
+    if (existing === prefix) return curr;
+    return `${prefix}${curr.slice(existing.length)}`.trim();
+  }
+  return `${prefix}${curr ? " " + curr : ""}`;
+};

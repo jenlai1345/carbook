@@ -465,10 +465,10 @@ function InventoryNewContent() {
           setNewOwnerId(buyerObj.id ?? "");
           (baseValues as any).newOwnerName = buyerObj.get("name") ?? "";
           (baseValues as any).newOwnerPhone = buyerObj.get("phone") ?? "";
-          ((baseValues as any).newOwnerEmail = o?.get("newOwnerEmail") ?? ""),
-            ((baseValues as any).newContractDate = toDateInput(
-              buyerObj.get("contractDate")
-            ));
+          (baseValues as any).newOwnerEmail = o?.get("newOwnerEmail") ?? "";
+          (baseValues as any).newContractDate = toDateInput(
+            buyerObj.get("contractDate")
+          );
           (baseValues as any).newDealPriceWan = (
             buyerObj.get("dealPriceWan") ?? ""
           ).toString();

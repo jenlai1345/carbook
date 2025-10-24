@@ -16,7 +16,7 @@ import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DATE_TF_PROPS } from "../mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
-import { loadSettingsType } from "@/utils/helpers";
+import { applyZipPrefix, loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "../RHFTextField";
 
 export type OriginalOwnerForm = {
@@ -60,14 +60,31 @@ export default function OriginalOwnerTab({
   const [procurementMethods, setProcurementMethods] = React.useState<string[]>([
     "",
   ]);
+  // 監聽郵遞區號
+  const regZip = useWatch({ control, name: "origOwnerRegZip" });
+  const mailZip = useWatch({ control, name: "origOwnerMailZip" });
 
-  const [registeredToNameDefault, setRegisteredToNameDefault] =
-    React.useState<string>("");
+  // 戶籍地址自動帶入
+  React.useEffect(() => {
+    const zip = typeof regZip === "string" ? regZip : "";
+    if (zip.replace(/\D/g, "").length >= 3) {
+      const curr = getValues("origOwnerRegAddr") ?? "";
+      const next = applyZipPrefix(zip, curr);
+      if (next !== curr)
+        setValue("origOwnerRegAddr", next, { shouldDirty: true });
+    }
+  }, [regZip, getValues, setValue]);
 
-  const currentRegisteredToName = useWatch({
-    control,
-    name: "registeredToName",
-  });
+  // 通訊地址自動帶入
+  React.useEffect(() => {
+    const zip = typeof mailZip === "string" ? mailZip : "";
+    if (zip.replace(/\D/g, "").length >= 3) {
+      const curr = getValues("origOwnerMailAddr") ?? "";
+      const next = applyZipPrefix(zip, curr);
+      if (next !== curr)
+        setValue("origOwnerMailAddr", next, { shouldDirty: true });
+    }
+  }, [mailZip, getValues, setValue]);
 
   React.useEffect(() => {
     let alive = true;
@@ -94,7 +111,6 @@ export default function OriginalOwnerTab({
 
         const firstNonEmpty =
           (names || []).find((s) => !!s?.trim())?.trim() ?? "";
-        setRegisteredToNameDefault(firstNonEmpty);
 
         const current = getValues("registeredToName");
         if (!current && firstNonEmpty) {
@@ -204,7 +220,11 @@ export default function OriginalOwnerTab({
             name="origOwnerRegZip"
             label="戶籍 郵遞區號"
             fullWidth
-            inputProps={{ inputMode: "numeric", maxLength: 5 }}
+            inputProps={{
+              inputMode: "numeric",
+              pattern: "[0-9]*",
+              maxLength: 5,
+            }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 10 }}>
@@ -223,7 +243,11 @@ export default function OriginalOwnerTab({
             name="origOwnerMailZip"
             label="通訊 郵遞區號"
             fullWidth
-            inputProps={{ inputMode: "numeric", maxLength: 5 }}
+            inputProps={{
+              inputMode: "numeric",
+              pattern: "[0-9]*",
+              maxLength: 5,
+            }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 10 }}>

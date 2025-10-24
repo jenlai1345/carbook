@@ -16,8 +16,9 @@ import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DATE_TF_PROPS } from "../mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
-import { loadSettingsType } from "@/utils/helpers";
+import { applyZipPrefix, loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "../RHFTextField";
+import { useFormContext, useWatch } from "react-hook-form";
 
 export type NewOwnerForm = {
   newOwnerName: string;
@@ -60,6 +61,33 @@ export default function NewOwnerTab({
   const [saleStyles, setSaleStyles] = React.useState<string[]>([""]);
   const [salesMethods, setSalesMethods] = React.useState<string[]>([""]);
   const [perferredShops, setPerferredShops] = React.useState<string[]>([""]);
+
+  const { setValue, getValues } = useFormContext();
+
+  // 監聽兩個郵遞區號欄位
+  const regZip = useWatch({ control, name: "newOwnerRegZip" });
+  const mailZip = useWatch({ control, name: "newOwnerMailZip" });
+
+  // 當戶籍郵號滿 3 碼，帶入戶籍地址前綴
+  React.useEffect(() => {
+    if (typeof regZip === "string" && regZip.replace(/\D/g, "").length >= 3) {
+      const next = applyZipPrefix(regZip, getValues("newOwnerRegAddr"));
+      // 只有在結果真的變更時才 set，避免游標跳動
+      if (next !== (getValues("newOwnerRegAddr") ?? "")) {
+        setValue("newOwnerRegAddr", next, { shouldDirty: true });
+      }
+    }
+  }, [regZip, setValue, getValues]);
+
+  // 當通訊郵號滿 3 碼，帶入通訊地址前綴
+  React.useEffect(() => {
+    if (typeof mailZip === "string" && mailZip.replace(/\D/g, "").length >= 3) {
+      const next = applyZipPrefix(mailZip, getValues("newOwnerMailAddr"));
+      if (next !== (getValues("newOwnerMailAddr") ?? "")) {
+        setValue("newOwnerMailAddr", next, { shouldDirty: true });
+      }
+    }
+  }, [mailZip, setValue, getValues]);
 
   React.useEffect(() => {
     let alive = true;

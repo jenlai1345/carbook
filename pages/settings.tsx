@@ -32,9 +32,9 @@ import CarToolbar from "@/components/CarToolbar";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { zhTW as pickersZhTW } from "@mui/x-date-pickers/locales";
-import { upsertBrand, upsertSetting } from "./api/settingsUpserts";
 import { getParse } from "../lib/parseClient";
 import Parse from "../lib/parseClient";
+import { upsertBrand, upsertSetting } from "@/lib/settingsUpserts";
 type PUser = Parse.User<Parse.Attributes>;
 // --------- 類型定義與對應 ---------
 type CategoryKey =
