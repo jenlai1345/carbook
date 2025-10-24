@@ -216,7 +216,7 @@ export default function BasicTab({ control }: Props) {
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 2 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Controller
             name={"dealer" as any}
             control={control}
@@ -233,7 +233,7 @@ export default function BasicTab({ control }: Props) {
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 10 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Controller
             name="equipment"
             control={control}
@@ -255,7 +255,7 @@ export default function BasicTab({ control }: Props) {
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Controller
             name={"remark" as any}
             control={control}
@@ -265,7 +265,7 @@ export default function BasicTab({ control }: Props) {
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Controller
             name="condition"
             control={control}
@@ -288,7 +288,7 @@ export default function BasicTab({ control }: Props) {
         </Grid>
 
         {/* 三個日曆 */}
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Controller
             name={"inboundDate" as any}
             control={control}
@@ -305,7 +305,7 @@ export default function BasicTab({ control }: Props) {
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Controller
             name={"promisedDate" as any}
             control={control}
@@ -322,7 +322,7 @@ export default function BasicTab({ control }: Props) {
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Controller
             name={"returnDate" as any}
             control={control}
@@ -339,7 +339,7 @@ export default function BasicTab({ control }: Props) {
           />
         </Grid>
 
-        <Grid size={{ xs: 12 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Controller
             name="disposition"
             control={control}
