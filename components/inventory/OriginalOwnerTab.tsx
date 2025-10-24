@@ -294,7 +294,7 @@ export default function OriginalOwnerTab({
         </Grid>
 
         {/* 第六列：買進已過戶(是/否) / 過戶名下 / 採購方式（DB） */}
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <Controller
             name="purchasedTransferred"
             control={control}
@@ -326,7 +326,7 @@ export default function OriginalOwnerTab({
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, md: 5 }}>
           <RHFTextField
             control={control}
             name="registeredToName"
@@ -335,7 +335,7 @@ export default function OriginalOwnerTab({
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, md: 5 }}>
           <Controller
             name="procurementMethod"
             control={control}

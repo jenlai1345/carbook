@@ -47,8 +47,9 @@ export default function InBoundTab({
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Grid container spacing={2}>
+        {/* --------------------- LINE 1 --------------------- */}
         {/* 單號 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 6 }}>
           <RHFTextField
             control={control}
             name="inbound.orderNo"
@@ -58,7 +59,7 @@ export default function InBoundTab({
         </Grid>
 
         {/* 鑰號 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 6 }}>
           <RHFTextField
             control={control}
             name="inbound.keyNo"
@@ -67,8 +68,9 @@ export default function InBoundTab({
           />
         </Grid>
 
+        {/* --------------------- LINE 2 --------------------- */}
         {/* 進貨模式（Setting: importStyle） */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <RHFTextField
             control={control}
             name="inbound.purchaseMode"
@@ -85,7 +87,7 @@ export default function InBoundTab({
         </Grid>
 
         {/* 採購員（Setting: purchaser） */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <RHFTextField
             control={control}
             name="inbound.purchaser"
@@ -101,12 +103,43 @@ export default function InBoundTab({
           </RHFTextField>
         </Grid>
 
+        {/* 採購獎金比（%） */}
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <RHFTextField
+            control={control}
+            name="inbound.purchaseBonusPct"
+            label="採購獎金比"
+            fullWidth
+            type="number"
+            inputProps={{ step: "1", min: "0" }}
+            InputProps={{
+              endAdornment: <InputAdornment position="end">%</InputAdornment>,
+            }}
+          />
+        </Grid>
+
+        {/* --------------------- LINE 3 --------------------- */}
         {/* 訂價（萬） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <RHFTextField
             control={control}
             name="inbound.listPriceWan"
             label="訂價"
+            fullWidth
+            type="number"
+            inputProps={{ step: "1", min: "0" }}
+            InputProps={{
+              endAdornment: <InputAdornment position="end">萬</InputAdornment>,
+            }}
+          />
+        </Grid>
+
+        {/* 新車價（萬） */}
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <RHFTextField
+            control={control}
+            name="inbound.newCarPriceWan"
+            label="新車價"
             fullWidth
             type="number"
             inputProps={{ step: "1", min: "0" }}
@@ -141,53 +174,10 @@ export default function InBoundTab({
           />
         </Grid>
 
-        {/* 採購獎金比（%） */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <RHFTextField
-            control={control}
-            name="inbound.purchaseBonusPct"
-            label="採購獎金比"
-            fullWidth
-            type="number"
-            inputProps={{ step: "1", min: "0" }}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">%</InputAdornment>,
-            }}
-          />
-        </Grid>
-
-        {/* 新車價（萬） */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <RHFTextField
-            control={control}
-            name="inbound.newCarPriceWan"
-            label="新車價"
-            fullWidth
-            type="number"
-            inputProps={{ step: "1", min: "0" }}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">萬</InputAdornment>,
-            }}
-          />
-        </Grid>
+        {/* --------------------- LINE 3 --------------------- */}
 
         {/* 異動日期 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <DatePicker
-            label="異動日期"
-            // RHFTextField isn't used here; keep DatePicker for its picker UI
-            value={undefined as any} // will be controlled by slotProps below via RHF
-            slotProps={{
-              textField: DATE_TF_PROPS,
-            }}
-            // We still need to wire RHF control; easiest is a tiny inline controller:
-            // (kept minimal to avoid repeating a wrapper component)
-            // Note: Inline Controller here to bind value/onChange
-            {...{
-              renderInput: undefined,
-            }}
-          />
-          {/* Inline controller: */}
           <Controller
             name="inbound.changeDate"
             control={control}

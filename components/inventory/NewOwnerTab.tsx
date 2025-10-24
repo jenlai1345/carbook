@@ -118,10 +118,10 @@ export default function NewOwnerTab({
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
         新車主資料
       </Typography>
-
       <Grid container spacing={2}>
+        {/* --------------------- LINE 1 --------------------- */}
         {/* 新車主名 / 電話 / Email / 同行（是／否） */}
-        <Grid size={{ xs: 6, md: 2 }}>
+        <Grid size={{ xs: 6, md: 3 }}>
           <RHFTextField
             control={control}
             name="newOwnerName"
@@ -130,7 +130,7 @@ export default function NewOwnerTab({
           />
         </Grid>
 
-        <Grid size={{ xs: 6, md: 2 }}>
+        <Grid size={{ xs: 6, md: 3 }}>
           <RHFTextField
             control={control}
             name="newOwnerPhone"
@@ -150,7 +150,7 @@ export default function NewOwnerTab({
           />
         </Grid>
 
-        <Grid size={{ xs: 6, md: 2 }}>
+        <Grid size={{ xs: 3, md: 3 }}>
           <Controller
             name="isPeer"
             control={control}
@@ -182,58 +182,7 @@ export default function NewOwnerTab({
           />
         </Grid>
 
-        {/* 合約日期 / 交車日期 / 成交價（萬） / 佣金（萬） */}
-        <Grid size={{ xs: 6, md: 3 }}>
-          <Controller
-            name="newContractDate"
-            control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="合約日期"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Controller
-            name="handoverDate"
-            control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="交車日期"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, md: 4 }}>
-          <RHFTextField
-            control={control}
-            name="newDealPriceWan"
-            label="成交價（萬）"
-            fullWidth
-            inputProps={{ inputMode: "decimal" }}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, md: 4 }}>
-          <RHFTextField
-            control={control}
-            name="newCommissionWan"
-            label="佣金（萬）"
-            fullWidth
-            inputProps={{ inputMode: "decimal" }}
-          />
-        </Grid>
-
+        {/* --------------------- LINE 2 --------------------- */}
         {/* 身分字號 / 生日 */}
         <Grid size={{ xs: 12, md: 6 }}>
           <RHFTextField
@@ -260,6 +209,60 @@ export default function NewOwnerTab({
           />
         </Grid>
 
+        {/* --------------------- LINE 3 --------------------- */}
+        {/* 合約日期 / 交車日期 / 成交價（萬） / 佣金（萬） */}
+        <Grid size={{ xs: 6, md: 3 }}>
+          <Controller
+            name="newContractDate"
+            control={control}
+            render={({ field }) => (
+              <DatePicker
+                label="合約日期"
+                value={field.value ? dayjs(field.value) : null}
+                onChange={(v) =>
+                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                }
+                slotProps={{ textField: DATE_TF_PROPS }}
+              />
+            )}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
+          <Controller
+            name="handoverDate"
+            control={control}
+            render={({ field }) => (
+              <DatePicker
+                label="交車日期"
+                value={field.value ? dayjs(field.value) : null}
+                onChange={(v) =>
+                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
+                }
+                slotProps={{ textField: DATE_TF_PROPS }}
+              />
+            )}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <RHFTextField
+            control={control}
+            name="newDealPriceWan"
+            label="成交價（萬）"
+            fullWidth
+            inputProps={{ inputMode: "decimal" }}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <RHFTextField
+            control={control}
+            name="newCommissionWan"
+            label="佣金（萬）"
+            fullWidth
+            inputProps={{ inputMode: "decimal" }}
+          />
+        </Grid>
+
+        {/* --------------------- LINE 4 --------------------- */}
         {/* 戶籍地址（郵號 + 地址） */}
         <Grid size={{ xs: 12, md: 3 }}>
           <RHFTextField
@@ -278,6 +281,8 @@ export default function NewOwnerTab({
             fullWidth
           />
         </Grid>
+
+        {/* --------------------- LINE 5 --------------------- */}
 
         {/* 通訊地址（郵號 + 地址） */}
         <Grid size={{ xs: 12, md: 3 }}>

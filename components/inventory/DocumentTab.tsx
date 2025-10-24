@@ -272,7 +272,7 @@ export default function DocumentTab({ control }: Props) {
         </Grid>
 
         {/* 稅金 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 6 }}>
           <FormControl component="fieldset">
             <FormLabel>稅金</FormLabel>
             <Controller
@@ -295,7 +295,7 @@ export default function DocumentTab({ control }: Props) {
         </Grid>
 
         {/* 備註 */}
-        <Grid size={{ xs: 12 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 6 }}>
           <RHFTextField
             control={control}
             name="document.remark"

@@ -55,7 +55,7 @@ export default function InsuranceTab({
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Grid container spacing={2}>
         {/* 保險類別 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <RHFTextField
             control={control}
             name="insurance.insuranceType"
@@ -72,7 +72,7 @@ export default function InsuranceTab({
         </Grid>
 
         {/* 到期日 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <Controller
             name="insurance.expireDate"
             control={control}
@@ -90,7 +90,7 @@ export default function InsuranceTab({
         </Grid>
 
         {/* 保險公司 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <RHFTextField
             control={control}
             name="insurance.insuranceCompany"
@@ -124,7 +124,7 @@ export default function InsuranceTab({
         </Grid>
 
         {/* 聯絡人 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
           <RHFTextField
             control={control}
             name="insurance.contactName"
@@ -144,7 +144,7 @@ export default function InsuranceTab({
         </Grid>
 
         {/* 金額 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
           <RHFTextField
             control={control}
             name="insurance.amount"
@@ -159,7 +159,7 @@ export default function InsuranceTab({
         </Grid>
 
         {/* 期數 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 3, md: 1 }}>
           <RHFTextField
             control={control}
             name="insurance.installments"
@@ -171,7 +171,7 @@ export default function InsuranceTab({
         </Grid>
 
         {/* 基數 */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 3, md: 1 }}>
           <RHFTextField
             control={control}
             name="insurance.baseAmount"
