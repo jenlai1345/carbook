@@ -7,6 +7,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DATE_TF_PROPS } from "@/components/mui";
 import { loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "@/components/RHFTextField";
+import RHFDollarTextField from "../RHFDollarTextField";
 
 export default function InBoundTab({
   control,
@@ -121,31 +122,21 @@ export default function InBoundTab({
         {/* --------------------- LINE 3 --------------------- */}
         {/* 訂價（萬） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <RHFTextField
+          <RHFDollarTextField
             control={control}
             name="inbound.listPriceWan"
             label="訂價"
             fullWidth
-            type="number"
-            inputProps={{ step: "1", min: "0" }}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">萬</InputAdornment>,
-            }}
           />
         </Grid>
 
         {/* 新車價（萬） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <RHFTextField
+          <RHFDollarTextField
             control={control}
             name="inbound.newCarPriceWan"
             label="新車價"
             fullWidth
-            type="number"
-            inputProps={{ step: "1", min: "0" }}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">萬</InputAdornment>,
-            }}
           />
         </Grid>
 
@@ -161,16 +152,11 @@ export default function InBoundTab({
 
         {/* 附註金額（萬） */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <RHFTextField
+          <RHFDollarTextField
             control={control}
             name="inbound.noteAmountWan"
             label="附註金額"
             fullWidth
-            type="number"
-            inputProps={{ step: "1", min: "0" }}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">萬</InputAdornment>,
-            }}
           />
         </Grid>
 

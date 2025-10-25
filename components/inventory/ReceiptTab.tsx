@@ -5,7 +5,6 @@ import {
   Button,
   Checkbox,
   IconButton,
-  InputAdornment,
   Paper,
   Stack,
   Table,
@@ -30,6 +29,7 @@ import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import RHFTextField from "@/components/RHFTextField";
 import { useConfirm } from "@/components/ConfirmProvider";
+import RHFDollarTextField from "../RHFDollarTextField";
 
 export type ReceiptItem = {
   date: string; // YYYY-MM-DD
@@ -164,18 +164,12 @@ export default function ReceiptTab({
 
                 {/* 金額（與其他頁一致） */}
                 <TableCell align="right">
-                  <RHFTextField
+                  <RHFDollarTextField
                     control={control}
                     name={`${FIELD}.${index}.amount`}
+                    suffix="元"
                     size="small"
-                    type="number"
                     fullWidth
-                    inputProps={{ step: "1", min: "0", inputMode: "numeric" }}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">元</InputAdornment>
-                      ),
-                    }}
                   />
                 </TableCell>
 

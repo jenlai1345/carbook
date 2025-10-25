@@ -17,6 +17,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DATE_TF_PROPS } from "@/components/mui";
 import { loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "@/components/RHFTextField";
+import RHFDollarTextField from "../RHFDollarTextField";
 
 export default function InsuranceTab({
   control,
@@ -145,16 +146,12 @@ export default function InsuranceTab({
 
         {/* 金額 */}
         <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-          <RHFTextField
+          <RHFDollarTextField
             control={control}
             name="insurance.amount"
             label="金額"
+            suffix="元"
             fullWidth
-            type="number"
-            inputProps={{ step: "1", min: "0" }}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">元</InputAdornment>,
-            }}
           />
         </Grid>
 

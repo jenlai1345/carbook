@@ -17,7 +17,6 @@ import {
   Typography,
   CircularProgress,
   Autocomplete,
-  InputAdornment,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -34,6 +33,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Parse from "@/lib/parseClient";
 import RHFTextField from "@/components/RHFTextField";
 import { useConfirm } from "@/components/ConfirmProvider";
+import RHFDollarTextField from "../RHFDollarTextField";
 
 export type FeeItem = {
   date: string; // YYYY-MM-DD
@@ -332,18 +332,12 @@ export default function FeeTab({
 
                 {/* 金額 */}
                 <TableCell align="right">
-                  <RHFTextField
+                  <RHFDollarTextField
                     control={control}
                     name={`${FIELD}.${index}.amount`}
+                    suffix="元"
                     size="small"
-                    type="number"
                     fullWidth
-                    inputProps={{ step: "1", min: "0", inputMode: "numeric" }}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">元</InputAdornment>
-                      ),
-                    }}
                   />
                 </TableCell>
 

@@ -18,6 +18,7 @@ import { DATE_TF_PROPS } from "../mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
 import { applyZipPrefix, loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "../RHFTextField";
+import RHFDollarTextField from "../RHFDollarTextField";
 
 export type OriginalOwnerForm = {
   origOwnerName: string;
@@ -187,21 +188,19 @@ export default function OriginalOwnerTab({
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <RHFTextField
+          <RHFDollarTextField
             control={control}
             name="origDealPriceWan"
-            label="成交價（萬）"
+            label="成交價"
             fullWidth
-            inputProps={{ inputMode: "decimal" }}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <RHFTextField
+          <RHFDollarTextField
             control={control}
             name="origCommissionWan"
-            label="佣金（萬）"
+            label="佣金"
             fullWidth
-            inputProps={{ inputMode: "decimal" }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>

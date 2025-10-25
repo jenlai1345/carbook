@@ -59,6 +59,7 @@ import InBoundTab from "@/components/inventory/InboundTab";
 import InsuranceTab from "@/components/inventory/InsuranceTab";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { useBrandOptions } from "@/hooks/useBrandOptions";
+import RHFDollarTextField from "@/components/RHFDollarTextField";
 
 export default function InventoryNewPage() {
   return (
@@ -1013,31 +1014,19 @@ function InventoryNewContent() {
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
-                name="buyPriceWan"
+              <RHFDollarTextField
                 control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="進（萬）"
-                    inputProps={{ inputMode: "decimal" }}
-                    fullWidth
-                  />
-                )}
+                name="buyPriceWan"
+                label="進價"
+                fullWidth
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
-                name="sellPriceWan"
+              <RHFDollarTextField
                 control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="賣（萬）"
-                    inputProps={{ inputMode: "decimal" }}
-                    fullWidth
-                  />
-                )}
+                name="sellPriceWan"
+                label="賣價"
+                fullWidth
               />
             </Grid>
           </Grid>

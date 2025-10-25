@@ -19,6 +19,7 @@ import { useCarSnackbar } from "../CarSnackbarProvider";
 import { applyZipPrefix, loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "../RHFTextField";
 import { useFormContext, useWatch } from "react-hook-form";
+import RHFDollarTextField from "../RHFDollarTextField";
 
 export type NewOwnerForm = {
   newOwnerName: string;
@@ -244,21 +245,19 @@ export default function NewOwnerTab({
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <RHFTextField
+          <RHFDollarTextField
             control={control}
             name="newDealPriceWan"
-            label="成交價（萬）"
+            label="成交價"
             fullWidth
-            inputProps={{ inputMode: "decimal" }}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <RHFTextField
+          <RHFDollarTextField
             control={control}
             name="newCommissionWan"
-            label="佣金（萬）"
+            label="佣金"
             fullWidth
-            inputProps={{ inputMode: "decimal" }}
           />
         </Grid>
 
