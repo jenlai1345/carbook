@@ -1,11 +1,13 @@
 // components/CarToolbar.tsx
+import dynamic from "next/dynamic";
+export default dynamic(() => Promise.resolve(CarToolbarImpl), { ssr: false });
+
 import * as React from "react";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import MuiLink from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import type { SxProps, Theme } from "@mui/material/styles";
@@ -15,6 +17,9 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import NextLink from "next/link";
 import type { UrlObject } from "url";
 import Parse from "../lib/parseClient";
+import { COLOR_ADMIN, COLOR_STAFF } from "@/utils/constants";
+import { getCurrentDealer } from "@/utils/helpers";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 export interface BreadcrumbItem {
   label: string;
@@ -23,33 +28,38 @@ export interface BreadcrumbItem {
 }
 
 export interface HLToolbarProps {
-  breadcrumbs: BreadcrumbItem[]; // e.g. [{label:'首頁', href:'/dashboard', showHomeIcon:true}, {label:'新增車籍'}]
-  rightSlot?: React.ReactNode; // optional: put buttons on the right (before user badge)
-  sx?: SxProps<Theme>; // style override for AppBar
+  breadcrumbs: BreadcrumbItem[];
+  rightSlot?: React.ReactNode;
+  sx?: SxProps<Theme>;
 }
 
 const toUrlObject = (href: string): UrlObject => ({ pathname: href });
 
-const CarToolbar: React.FC<HLToolbarProps> = ({
+const CarToolbarImpl: React.FC<HLToolbarProps> = ({
   breadcrumbs,
   rightSlot,
   sx,
 }) => {
-  const [userTitle, setUserTitle] = React.useState<string>("");
+  const [dealerName, setDealerName] = React.useState<string>("");
   const [hasUser, setHasUser] = React.useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useLocalStorage("isAdmin", false);
 
   React.useEffect(() => {
     const init = async () => {
       const user = await Parse.User.currentAsync();
       if (!user) {
         setHasUser(false);
+        setIsAdmin(false);
         return;
       }
       setHasUser(true);
-      setUserTitle(user.get("title") || "");
+      const dealer = await getCurrentDealer();
+      setDealerName(dealer?.get("name") || "");
+      setIsAdmin(!!user.get("isAdmin"));
     };
     void init();
   }, []);
+
 
   const handleLogout = async () => {
     try {
@@ -60,17 +70,19 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
     }
   };
 
+  const decoratedTitle = dealerName
+    ? `${dealerName}${isAdmin ? "（管理者）" : ""}`
+    : "";
+
   return (
     <AppBar
       position="sticky"
       elevation={0}
       sx={{
-        bgcolor: "grey.900",
-        color: "common.white",
-        borderBottom: "1px solid",
-        borderColor: "grey.800",
-        mb: 2,
         ...sx,
+        bgcolor: isAdmin ? COLOR_ADMIN : COLOR_STAFF,
+        color: "common.white",
+        mb: 2,
       }}
     >
       <Toolbar sx={{ minHeight: 64, gap: 1 }}>
@@ -86,53 +98,57 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
             fontSize: 18,
             "& a, & .MuiTypography-root": {
               color: "inherit",
-              fontSize: "inherit", // same size as "首頁"
-              fontWeight: 600, // same weight as "首頁"
+              fontSize: "inherit",
+              fontWeight: 600,
               lineHeight: 1.8,
               display: "inline-flex",
               alignItems: "center",
               gap: 0.5,
+              textDecoration: "none",
             },
           }}
         >
           {breadcrumbs.map((bc, i) => {
-            const node = (
+            const isLast = i === breadcrumbs.length - 1;
+            const content = (
               <>
                 {bc.showHomeIcon && <HomeRoundedIcon sx={{ fontSize: 20 }} />}
                 {bc.label}
               </>
             );
-            const isLast = i === breadcrumbs.length - 1;
 
             if (!isLast && bc.href) {
               const href: UrlObject = toUrlObject(bc.href);
               return (
-                <NextLink
+                <MuiLink
                   key={`${bc.label}-${i}`}
+                  component={NextLink}
                   href={href}
-                  legacyBehavior
-                  passHref
+                  underline="hover"
+                  color="inherit"
                 >
-                  <MuiLink underline="hover" color="inherit">
-                    {node}
-                  </MuiLink>
-                </NextLink>
+                  {content}
+                </MuiLink>
               );
             }
 
             return (
-              <Typography key={`${bc.label}-${i}`} color="inherit">
-                {node}
+              <Typography
+                key={`${bc.label}-${i}`}
+                color="inherit"
+                component="span"
+              >
+                {content}
               </Typography>
             );
           })}
         </Breadcrumbs>
 
         {/* Optional right-side slot (e.g., buttons) */}
-        {rightSlot && <Box sx={{ ml: 1 }}>{rightSlot}</Box>}
+        {rightSlot ? <Box sx={{ ml: 1 }}>{rightSlot}</Box> : null}
 
         {/* Dealer name → /account + Logout */}
-        {(hasUser || userTitle) && (
+        {(hasUser || dealerName) && (
           <Box
             sx={{
               ml: 3,
@@ -142,37 +158,26 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
               flexShrink: 0,
             }}
           >
-            {userTitle ? (
-              <NextLink href="/account" legacyBehavior passHref>
-                <MuiLink
-                  underline="hover"
-                  sx={{
-                    color: "inherit",
-                    fontSize: 18,
-                    fontWeight: 600,
-                    lineHeight: 1.8,
-                    whiteSpace: "nowrap",
-                    maxWidth: 240,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    cursor: "pointer",
-                    "&:hover": { color: "grey.200" },
-                  }}
-                  title={userTitle}
-                >
-                  {userTitle}
-                </MuiLink>
-              </NextLink>
-            ) : (
-              <NextLink href="/account" legacyBehavior passHref>
-                <MuiLink
-                  underline="hover"
-                  sx={{ color: "inherit", fontSize: 16, fontWeight: 600 }}
-                >
-                  帳戶
-                </MuiLink>
-              </NextLink>
-            )}
+            <MuiLink
+              component={NextLink}
+              href="/account"
+              underline="hover"
+              sx={{
+                color: "inherit",
+                fontSize: decoratedTitle ? 18 : 16,
+                fontWeight: 600,
+                lineHeight: 1.8,
+                whiteSpace: "nowrap",
+                maxWidth: 280,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                cursor: "pointer",
+                "&:hover": { color: "grey.200" },
+              }}
+              title={decoratedTitle || "帳號"}
+            >
+              {decoratedTitle || "帳號"}
+            </MuiLink>
 
             <Button
               color="inherit"
@@ -184,7 +189,7 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
                 fontWeight: 600,
                 fontSize: 16,
                 ml: 0.5,
-                "&:hover": { bgcolor: "grey.800" },
+                "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
               }}
             >
               登出
@@ -195,5 +200,3 @@ const CarToolbar: React.FC<HLToolbarProps> = ({
     </AppBar>
   );
 };
-
-export default CarToolbar;

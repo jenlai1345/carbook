@@ -27,13 +27,12 @@ import {
   useFieldArray,
   useWatch,
 } from "react-hook-form";
-import dayjs from "dayjs";
 import "dayjs/locale/zh-tw";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Parse from "@/lib/parseClient";
 import RHFTextField from "@/components/RHFTextField";
 import { useConfirm } from "@/components/ConfirmProvider";
 import RHFDollarTextField from "../RHFDollarTextField";
+import RHFDatePicker from "../RHFDatePicker";
 
 export type FeeItem = {
   date: string; // YYYY-MM-DD
@@ -49,9 +48,13 @@ const FIELD = "fees" as const;
 
 /** 讀取某一 Setting.type 的「name」清單 */
 async function fetchSettingNamesByType(type: string): Promise<string[]> {
+  const user = Parse.User.current();
+  const dealer = user?.get("dealer"); // ✅ dealer pointer on _User
+  if (!user || !dealer) return [];
+
   const Setting = Parse.Object.extend("Setting");
   const q = new Parse.Query(Setting);
-  q.equalTo("owner", Parse.User.current());
+  q.equalTo("dealer", dealer);
   q.equalTo("type", type);
   q.equalTo("active", true);
   q.ascending("order").addAscending("name");
@@ -219,18 +222,10 @@ export default function FeeTab({
 
                 {/* 日期 */}
                 <TableCell>
-                  <Controller
-                    name={`${FIELD}.${index}.date`}
+                  <RHFDatePicker
                     control={control}
-                    render={({ field }) => (
-                      <DatePicker
-                        value={field.value ? dayjs(field.value) : null}
-                        onChange={(v) =>
-                          field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                        }
-                        slotProps={{ textField: { size: "small" } }}
-                      />
-                    )}
+                    name={`${FIELD}.${index}.date`}
+                    label=""
                   />
                 </TableCell>
 

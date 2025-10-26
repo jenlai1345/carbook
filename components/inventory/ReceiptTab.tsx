@@ -25,11 +25,10 @@ import {
   useWatch,
 } from "react-hook-form";
 import { useCarSnackbar } from "../CarSnackbarProvider";
-import { DatePicker } from "@mui/x-date-pickers";
-import dayjs from "dayjs";
 import RHFTextField from "@/components/RHFTextField";
 import { useConfirm } from "@/components/ConfirmProvider";
 import RHFDollarTextField from "../RHFDollarTextField";
+import RHFDatePicker from "../RHFDatePicker";
 
 export type ReceiptItem = {
   date: string; // YYYY-MM-DD
@@ -147,18 +146,10 @@ export default function ReceiptTab({
 
                 {/* 日期 */}
                 <TableCell>
-                  <Controller
-                    name={`${FIELD}.${index}.date`}
+                  <RHFDatePicker
                     control={control}
-                    render={({ field }) => (
-                      <DatePicker
-                        value={field.value ? dayjs(field.value) : null}
-                        onChange={(v) =>
-                          field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                        }
-                        slotProps={{ textField: { size: "small" } }}
-                      />
-                    )}
+                    name={`${FIELD}.${index}.date`}
+                    label=""
                   />
                 </TableCell>
 
@@ -190,18 +181,10 @@ export default function ReceiptTab({
 
                 {/* 票據日期 */}
                 <TableCell>
-                  <Controller
-                    name={`${FIELD}.${index}.exchangeDate`}
+                  <RHFDatePicker
                     control={control}
-                    render={({ field }) => (
-                      <DatePicker
-                        value={field.value ? dayjs(field.value) : null}
-                        onChange={(v) =>
-                          field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                        }
-                        slotProps={{ textField: { size: "small" } }}
-                      />
-                    )}
+                    name={`${FIELD}.${index}.exchangeDate`}
+                    label=""
                   />
                 </TableCell>
 

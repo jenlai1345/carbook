@@ -18,6 +18,7 @@ import { DATE_TF_PROPS } from "../mui";
 import type { FormValues } from "@/schemas/carSchemas";
 import RHFImageUpload from "@/components/RHFImageUpload";
 import RHFTextField from "@/components/RHFTextField";
+import RHFDatePicker from "../RHFDatePicker";
 
 /** ---------- Document Tab（含圖片上傳） ---------- */
 type Props = { control: Control<FormValues, any, any> };
@@ -163,19 +164,10 @@ export default function DocumentTab({ control }: Props) {
 
         {/* 驗車日期 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Controller
-            name="document.inspectDate"
+          <RHFDatePicker
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="驗車日期"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            name="document.inspectDate"
+            label="驗車日期"
           />
         </Grid>
 

@@ -30,7 +30,7 @@ export const basicSchema = z.object({
   color: z.string().optional().or(z.literal("")),
   engineNo: z.string().optional().or(z.literal("")),
   vin: z.string().optional().or(z.literal("")),
-  dealer: z.string().optional().or(z.literal("")), // "外匯" | "貿易商" |
+  dealerName: z.string().optional().or(z.literal("")), // "外匯" | "貿易商" |
   equipment: z.string().optional().or(z.literal("")),
   remark: z.string().optional().or(z.literal("")),
   condition: z.string().optional().or(z.literal("")),

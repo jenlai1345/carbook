@@ -2,6 +2,7 @@
 import { TW_ZIP3_TO_PREFIX } from "@/data/TW_ZIP3_TO_PREFIX";
 import Parse from "../lib/parseClient";
 import type { Car, CarStatus } from "../models";
+import dayjs, { Dayjs } from "dayjs";
 
 /** Debounce hook */
 export function useDebounce<T>(value: T, delay = 250) {
@@ -21,7 +22,8 @@ export type Option = { id: string; name: string };
 
 export async function ensureBrandByName(name: string): Promise<string> {
   const q = new Parse.Query("Brand");
-  q.equalTo("owner", Parse.User.current());
+  if (!Parse.User.current()?.get("dealer")) return "";
+  q.equalTo("dealer", Parse.User.current()?.get("dealer"));
   q.equalTo("name", name.trim());
   const exist = await q.first();
   if (exist) return exist.id ?? "";
@@ -30,6 +32,30 @@ export async function ensureBrandByName(name: string): Promise<string> {
   b.set("name", name.trim());
   const saved = await b.save(); // make sure CLP allows create for logged-in users
   return saved.id;
+}
+
+export async function getCurrentDealer(
+  useMasterKey = false
+): Promise<Parse.Object | null> {
+  const user = await Parse.User.currentAsync();
+  if (!user) return null;
+
+  // Re-fetch with master key if requested or if the dealer field may be protected
+  const me = useMasterKey
+    ? await user.fetch({ useMasterKey: true })
+    : await user.fetch();
+
+  const dealerPtr = me.get("dealer");
+  if (!dealerPtr || !dealerPtr.id) return null;
+
+  try {
+    // Fetch the actual dealer object
+    const dealer = await dealerPtr.fetch({ useMasterKey });
+    return dealer;
+  } catch (err) {
+    console.error("Failed to fetch dealer:", err);
+    return null;
+  }
 }
 
 /** Which text fields we search against for the keyword box */
@@ -78,8 +104,16 @@ export function matchesKeyword(car: Car, kw: string) {
 }
 
 /** Safely convert unknown date-like values to `YYYY-MM-DD` or "" */
-const toDateInput = (d?: Date | null): string =>
-  d instanceof Date ? d.toISOString().slice(0, 10) : "";
+export function toDateInput(value: any): string {
+  if (!value) return "";
+  // if already a string like "2025-10-26"
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  // if it's a Date object or Parse.Date
+  const d = dayjs(value);
+  return d.isValid() ? d.format("YYYY-MM-DD") : "";
+}
 
 const toDateFromUnknown = (x: unknown): string => {
   if (x instanceof Date) return toDateInput(x);
@@ -93,7 +127,8 @@ export async function fetchCars(): Promise<Car[]> {
   const CarClass = Parse.Object.extend("Car");
   const q = new Parse.Query(CarClass);
   const currentUser = Parse.User.current();
-  if (currentUser) q.equalTo("owner", currentUser);
+  const dealer = currentUser?.get("dealer");
+  if (dealer) q.equalTo("dealer", dealer);
   q.limit(1000);
   q.include(["brand"]); // resolve pointer names
 
@@ -153,19 +188,18 @@ export function a11yProps(i: number) {
   return { id: `inv-tab-${i}`, "aria-controls": `inv-tabpanel-${i}` };
 }
 
-// Export the helpers too (your existing exports kept)
-export { toDateInput };
 
 /** Keep existing API: coerce unknown into a date string (YYYY-MM-DD) or "" */
 export const toDateStr = (x: unknown): string =>
   x instanceof Date ? toDateInput(x) : typeof x === "string" ? x : "";
 
 export async function loadSettingsType(type: string): Promise<string[]> {
+  if (!Parse.User.current()?.get("dealer")) return [""];
   const Setting = Parse.Object.extend("Setting");
   const q = new Parse.Query(Setting);
   q.equalTo("type", type);
   q.equalTo("active", true);
-  q.equalTo("owner", Parse.User.current());
+  q.equalTo("dealer", Parse.User.current()?.get("dealer"));
   q.ascending("order").addAscending("name");
   const list = await q.find();
   return [""].concat(

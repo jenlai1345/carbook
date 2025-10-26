@@ -34,6 +34,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import SystemIcon from "@mui/icons-material/Monitor";
 import SettingsIcon from "@mui/icons-material/Settings";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ManagementIcon from "@mui/icons-material/ManageAccounts";
 import {
   useDebounce,
   matchesKeyword,
@@ -42,6 +43,7 @@ import {
   setCarStatus,
 } from "../utils/helpers";
 import { useConfirm } from "@/components/ConfirmProvider";
+import Parse from "../lib/parseClient";
 
 /* -------------------- internal helpers -------------------- */
 function a11yProps(index: number) {
@@ -101,7 +103,8 @@ function NavTile({
     | "TrendingUp"
     | "People"
     | "System"
-    | "Settings";
+    | "Settings"
+    | "Management";
 }) {
   const Icon = {
     DirectionsCar: DirectionsCarIcon,
@@ -111,6 +114,7 @@ function NavTile({
     People: PeopleIcon,
     System: SystemIcon,
     Settings: SettingsIcon,
+    Management: ManagementIcon,
   }[iconName];
   return (
     <Card sx={{ borderRadius: 3 }}>
@@ -192,11 +196,12 @@ function CarCard({
               <Stack direction="row" spacing={1} alignItems="center">
                 <StatusChip status={car.status} />
                 <IconButton
+                  component="span"
                   size="small"
                   aria-label="actions"
                   onClick={(e) => {
-                    e.stopPropagation();
-                    setAnchorEl(e.currentTarget);
+                    e.stopPropagation(); // don't trigger CardActionArea
+                    setAnchorEl(e.currentTarget as HTMLElement);
                   }}
                 >
                   <MoreVertIcon fontSize="small" />
@@ -211,7 +216,8 @@ function CarCard({
 
             {/* 出廠日 / 領牌日 / 顏色 */}
             <Typography variant="body2" color="text.secondary" noWrap>
-              {car.factoryYM ?? "—"} / {car.plateYM ?? "—"} / {car.color ?? "—"}
+              {car.factoryYM ?? "—"}(出) / {car.plateYM ?? "—"}(領) /{" "}
+              {car.color ?? "—"}
             </Typography>
 
             {/* 車身碼（VIN） */}
@@ -233,7 +239,6 @@ function CarCard({
         </CardContent>
       </CardActionArea>
 
-      {/* Menu lives outside CardActionArea to avoid accidental navigation */}
       <Menu
         anchorEl={anchorEl}
         open={open}
@@ -264,8 +269,8 @@ function CarCard({
         <MenuItem
           sx={{ color: "error.main" }}
           onClick={async (e) => {
-            e.stopPropagation(); // avoid row click
-            setAnchorEl(null); // close the menu first
+            e.stopPropagation();
+            setAnchorEl(null);
 
             const ok = await confirm({
               title: "確認刪除車輛？",
@@ -277,8 +282,8 @@ function CarCard({
             if (!ok) return;
 
             try {
-              setBusy(true); // optional: lock dialog if still open
-              await onDelete(car); // your existing delete handler (server + UI)
+              setBusy(true);
+              await onDelete(car);
             } finally {
               setBusy(false);
             }
@@ -308,6 +313,7 @@ export default function DashboardPage() {
 
   const [cars, setCars] = useState<Car[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = React.useState(false);
 
   // action UI state
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -334,6 +340,18 @@ export default function DashboardPage() {
     return () => {
       alive = false;
     };
+  }, []);
+
+  React.useEffect(() => {
+    const init = async () => {
+      const user = await Parse.User.currentAsync();
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      setIsAdmin(!!user.get("isAdmin")); // ✅ read admin flag
+    };
+    void init();
   }, []);
 
   const filtered = useMemo(() => {
@@ -395,14 +413,6 @@ export default function DashboardPage() {
 
   // ------- actions -------
   const onDelete = async (car: Car) => {
-    if (
-      !confirm(
-        `確定要刪除「${car.brand ?? ""} ${
-          car.model ?? ""
-        }」嗎？此操作無法復原。`
-      )
-    )
-      return;
     setBusyId(car.objectId);
     const prev = cars;
     removeLocalCar(car.objectId); // optimistic
@@ -487,14 +497,23 @@ export default function DashboardPage() {
             <NavTile href="/profit" title="成本利潤" iconName="TrendingUp" />
           </Grid>
           <Grid size={{ xs: 6, md: 3 }}>
-            <NavTile href="/customers" title="客戶管理" iconName="People" />
+            <NavTile href="/customers" title="客戶關係" iconName="People" />
           </Grid>
           <Grid size={{ xs: 6, md: 3 }}>
             <NavTile href="/system" title="系統作業" iconName="System" />
           </Grid>
           <Grid size={{ xs: 6, md: 3 }}>
-            <NavTile href="/settings" title="設定" iconName="Settings" />
+            <NavTile href="/settings" title="選項設定" iconName="Settings" />
           </Grid>
+          {isAdmin ? (
+            <Grid size={{ xs: 6, md: 3 }}>
+              <NavTile
+                href="/admin/users"
+                title="管理使用者"
+                iconName="Management"
+              />
+            </Grid>
+          ) : null}
         </Grid>
 
         {/* Tabs first, then Search */}

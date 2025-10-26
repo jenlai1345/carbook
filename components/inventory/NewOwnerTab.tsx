@@ -12,14 +12,12 @@ import {
   Radio,
 } from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
-import { DatePicker } from "@mui/x-date-pickers";
-import dayjs from "dayjs";
-import { DATE_TF_PROPS } from "../mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
 import { applyZipPrefix, loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "../RHFTextField";
 import { useFormContext, useWatch } from "react-hook-form";
 import RHFDollarTextField from "../RHFDollarTextField";
+import RHFDatePicker from "../RHFDatePicker";
 
 export type NewOwnerForm = {
   newOwnerName: string;
@@ -194,54 +192,23 @@ export default function NewOwnerTab({
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <Controller
-            name="newOwnerBirth"
-            control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="生日"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
-          />
+          <RHFDatePicker control={control} name="newOwnerBirth" label="生日" />
         </Grid>
 
         {/* --------------------- LINE 3 --------------------- */}
         {/* 合約日期 / 交車日期 / 成交價（萬） / 佣金（萬） */}
         <Grid size={{ xs: 6, md: 3 }}>
-          <Controller
-            name="newContractDate"
+          <RHFDatePicker
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="合約日期"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            name="newContractDate"
+            label="合約日期"
           />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
-            name="handoverDate"
+          <RHFDatePicker
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="交車日期"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            name="handoverDate"
+            label="交車日期"
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>

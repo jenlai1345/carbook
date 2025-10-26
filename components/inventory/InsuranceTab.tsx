@@ -12,12 +12,10 @@ import {
   Radio,
 } from "@mui/material";
 import { Controller, Control, FieldErrors } from "react-hook-form";
-import dayjs from "dayjs";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { DATE_TF_PROPS } from "@/components/mui";
 import { loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "@/components/RHFTextField";
 import RHFDollarTextField from "../RHFDollarTextField";
+import RHFDatePicker from "../RHFDatePicker";
 
 export default function InsuranceTab({
   control,
@@ -74,19 +72,10 @@ export default function InsuranceTab({
 
         {/* 到期日 */}
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <Controller
-            name="insurance.expireDate"
+          <RHFDatePicker
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="到期日"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            name="insurance.expireDate"
+            label="到期日"
           />
         </Grid>
 

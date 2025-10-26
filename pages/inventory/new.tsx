@@ -60,6 +60,7 @@ import InsuranceTab from "@/components/inventory/InsuranceTab";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { useBrandOptions } from "@/hooks/useBrandOptions";
 import RHFDollarTextField from "@/components/RHFDollarTextField";
+import RHFDatePicker from "@/components/RHFDatePicker";
 
 export default function InventoryNewPage() {
   return (
@@ -144,7 +145,7 @@ function InventoryNewContent() {
       color: "",
       engineNo: "",
       vin: "",
-      dealer: "",
+      dealerName: "",
       equipment: "",
       remark: "",
       condition: "",
@@ -331,7 +332,7 @@ function InventoryNewContent() {
           color: o.get("color") ?? "",
           engineNo: o.get("engineNo") ?? "",
           vin: o.get("vin") ?? "",
-          dealer: o.get("dealer") ?? "",
+          dealerName: o.get("dealerName") ?? "",
           equipment: o.get("equipment") ?? "",
           remark: o.get("remark") ?? "",
           condition: o.get("condition") ?? "",
@@ -552,287 +553,297 @@ function InventoryNewContent() {
 
   /* --------- submit (create or update) --------- */
   const onSubmit = async (v: FormValues) => {
-    // Ensure Brand exist (unchanged)
-    let brandId = v.brandId;
-    if (!brandId && v.brandName) {
-      brandId = await ensureBrandByName(v.brandName);
-      setValue("brandId", brandId || "");
+    try {
+      // Ensure Brand exist (unchanged)
+      let brandId = v.brandId;
+      if (!brandId && v.brandName) {
+        brandId = await ensureBrandByName(v.brandName);
+        setValue("brandId", brandId || "");
+      }
+
+      const Car = Parse.Object.extend("Car");
+      const car = carId ? Car.createWithoutData(carId) : new Car();
+
+      // pointers
+      if (brandId) {
+        const Brand = Parse.Object.extend("Brand");
+        car.set("brand", Brand.createWithoutData(brandId));
+      } else {
+        car.unset("brand");
+      }
+
+      // top fixed fields
+      car.set("plateNo", v.plateNo);
+      car.set("prevPlateNo", v.prevPlateNo || null);
+
+      // IMPORTANT: keep as strings (schema expects String)
+      car.set("deliverDate", v.deliverDate || null);
+
+      car.set("style", v.style || null);
+      car.set("buyPriceWan", v.buyPriceWan ? Number(v.buyPriceWan) : null);
+      car.set("sellPriceWan", v.sellPriceWan ? Number(v.sellPriceWan) : null);
+      car.set("seriesCategory", v.seriesCategory || null);
+
+      // 基本 tab fields
+      car.set("factoryYM", v.factoryYM || null);
+      car.set("plateYM", v.plateYM || null);
+      car.set("model", v.model || null);
+      car.set(
+        "displacementCc",
+        v.displacementCc ? Number(v.displacementCc) : null
+      );
+      car.set("transmission", v.transmission || null);
+      car.set("color", v.color || null);
+      car.set("engineNo", v.engineNo || null);
+      car.set("vin", v.vin || null);
+      car.set("dealerName", v.dealerName || null);
+      car.set("equipment", v.equipment || null);
+      car.set("remark", v.remark || null);
+      car.set("condition", v.condition || null);
+
+      // keep as strings
+      car.set("inboundDate", v.inboundDate || null);
+      car.set("promisedDate", v.promisedDate || null);
+      car.set("returnDate", v.returnDate || null);
+
+      car.set("disposition", v.disposition || null);
+
+      car.set("images", Array.isArray(v.images) ? v.images : []);
+
+      const u = Parse.User.current();
+      if (u) car.set("createdBy", u);
+      if (u) car.set("dealer", u.get("dealer") || null);
+
+      // default status on create
+      if (!carId) car.set("status", "active");
+
+      if (tab === BASIC_TAB_INDEX) {
+        await car.save();
+        showMessage(carId ? "✅ 基本資料已更新" : "✅ 車輛已建立");
+        return;
+      } else if (tab === ORIGINAL_OWNER_TAB_INDEX) {
+        const Owner = Parse.Object.extend("Owner");
+        const owner = origOwnerId
+          ? Owner.createWithoutData(origOwnerId)
+          : new Owner();
+
+        owner.set("name", v.origOwnerName || null);
+        owner.set("idNo", v.origOwnerIdNo || null);
+        owner.set(
+          "birth",
+          v.origOwnerBirth ? new Date(v.origOwnerBirth) : null
+        );
+        owner.set("regAddr", v.origOwnerRegAddr || null);
+        owner.set("mailAddr", v.origOwnerMailAddr || null);
+        owner.set("consignorName", v.consignorName || null);
+        owner.set("consignorPhone", v.consignorPhone || null);
+        owner.set("referrerName", v.referrerName || null);
+        owner.set("referrerPhone", v.referrerPhone || null);
+        owner.set("purchasedTransferred", v.purchasedTransferred || null);
+        owner.set("registeredToName", v.registeredToName || null);
+        owner.set("procurementMethod", v.procurementMethod || null);
+        owner.set("note", v.origOwnerNote || null);
+        owner.set(
+          "contractDate",
+          v.origContractDate ? new Date(v.origContractDate) : null
+        );
+        owner.set(
+          "dealPriceWan",
+          v.origDealPriceWan ? Number(v.origDealPriceWan) : null
+        );
+        owner.set(
+          "commissionWan",
+          v.origCommissionWan ? Number(v.origCommissionWan) : null
+        );
+        owner.set("phone", v.origOwnerPhone || null);
+        if (u) owner.set("dealer", u.get("dealer") || null);
+
+        await owner.save();
+        car.set("originalOwner", owner);
+        await car.save();
+
+        if (!origOwnerId) setOrigOwnerId(owner.id);
+        showMessage(
+          origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立"
+        );
+        return;
+      } else if (tab === DOCUMENT_TAB_INDEX) {
+        const d = v.document || {};
+        const n = (x: any) => (x === "" || x == null ? null : x);
+
+        const docOut = {
+          audioCode: n(d.audioCode),
+          spareKey: n(d.spareKey),
+          certOk: n(d.certOk),
+          license: n(d.license),
+          application: n(d.application),
+          transferPaper: n(d.transferPaper),
+          payoffProof: n(d.payoffProof),
+          inspectDate: n(d.inspectDate), // 'YYYY-MM-DD' string
+          taxCert: n(d.taxCert),
+          factoryCert: n(d.factoryCert),
+          copyFlag: n(d.copyFlag),
+          plate: n(d.plate),
+          taxStatus: n(d.taxStatus),
+          remark: n(d.remark),
+          images: Array.isArray(d.images) ? (d.images as UploadedImage[]) : [],
+        };
+
+        car.set("document", docOut);
+        await car.save();
+        showMessage("✅ 已更新證件資料");
+        return;
+      } else if (tab === INBOUND_TAB_INDEX) {
+        const d = v.inbound || {};
+        const n = (x: any) => (x === "" || x == null ? null : x);
+
+        const inboundOut = {
+          orderNo: n(d.orderNo),
+          keyNo: n(d.keyNo),
+          purchaseMode: n(d.purchaseMode),
+          purchaser: n(d.purchaser),
+          listPriceWan: d.listPriceWan ? Number(d.listPriceWan) : null,
+          note: n(d.note),
+          noteAmountWan: d.noteAmountWan ? Number(d.noteAmountWan) : null,
+          purchaseBonusPct: d.purchaseBonusPct
+            ? Number(d.purchaseBonusPct)
+            : null,
+          newCarPriceWan: d.newCarPriceWan ? Number(d.newCarPriceWan) : null,
+          changeDate: n(d.changeDate),
+          changeMethod: n(d.changeMethod),
+          originalMileageKm: d.originalMileageKm
+            ? Number(d.originalMileageKm)
+            : null,
+          adjustedMileageKm: d.adjustedMileageKm
+            ? Number(d.adjustedMileageKm)
+            : null,
+        };
+
+        car.set("inbound", inboundOut);
+        await car.save();
+        showMessage("✅ 已更新入車資料");
+        return;
+      } else if (tab === INSURANCE_TAB_INDEX) {
+        const d = v.insurance || {};
+        const n = (x: any) => (x === "" || x == null ? null : x);
+
+        const insuranceOut = {
+          insuranceType: n(d.insuranceType),
+          expireDate: n(d.expireDate), // 'YYYY-MM-DD' string
+          insuranceCompany: n(d.insuranceCompany),
+          loanCompany: n(d.loanCompany),
+          contactName: n(d.contactName),
+          contactPhone: n(d.contactPhone),
+          amount: d.amount ? Number(d.amount) : null,
+          installments: d.installments ? Number(d.installments) : null,
+          baseAmount: d.baseAmount ? Number(d.baseAmount) : null,
+          invoice: n(d.invoice),
+          personalName: n(d.personalName),
+          collection: n(d.collection),
+        };
+
+        car.set("insurance", insuranceOut);
+        await car.save();
+        showMessage("✅ 已更新保險/貸款資料");
+        return;
+      } else if (tab === NEW_OWNER_TAB_INDEX) {
+        const Owner = Parse.Object.extend("Owner");
+        const buyer = newOwnerId
+          ? Owner.createWithoutData(newOwnerId)
+          : new Owner();
+
+        buyer.set("name", v.newOwnerName || null);
+        buyer.set("phone", v.newOwnerPhone || null);
+        buyer.set(
+          "contractDate",
+          v.newContractDate ? new Date(v.newContractDate) : null
+        );
+        buyer.set(
+          "dealPriceWan",
+          v.newDealPriceWan ? Number(v.newDealPriceWan) : null
+        );
+        buyer.set(
+          "commissionWan",
+          v.newCommissionWan ? Number(v.newCommissionWan) : null
+        );
+        buyer.set(
+          "handoverDate",
+          v.handoverDate ? new Date(v.handoverDate) : null
+        );
+        buyer.set("idNo", v.newOwnerIdNo || null);
+        buyer.set("birth", v.newOwnerBirth ? new Date(v.newOwnerBirth) : null);
+        buyer.set("regAddr", v.newOwnerRegAddr || null);
+        buyer.set("regZip", v.newOwnerRegZip || null);
+        buyer.set("mailAddr", v.newOwnerMailAddr || null);
+        buyer.set("mailZip", v.newOwnerMailZip || null);
+        buyer.set("buyerAgentName", v.buyerAgentName || null);
+        buyer.set("buyerAgentPhone", v.buyerAgentPhone || null);
+        buyer.set("referrerName2", v.referrerName2 || null);
+        buyer.set("referrerPhone2", v.referrerPhone2 || null);
+        buyer.set("salesmanName", v.salesmanName || null);
+        buyer.set(
+          "salesCommissionPct",
+          v.salesCommissionPct ? Number(v.salesCommissionPct) : null
+        );
+        buyer.set("salesMode", v.salesMode || null);
+        buyer.set("preferredShop", v.preferredShop || null);
+        buyer.set("note", v.newOwnerNote || null);
+        buyer.set("isPeer", v.isPeer === "是"); // 「同行」布林值
+        if (u) buyer.set("dealer", u.get("dealer") || null);
+
+        await buyer.save();
+        car.set("newOwner", buyer);
+        car.set("newOwnerEmail", v.newOwnerEmail || "");
+        await car.save();
+
+        if (!newOwnerId) setNewOwnerId(buyer.id);
+        showMessage(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
+        return;
+      } else if (tab === PAYMENT_TAB_INDEX) {
+        const payments = (v.payments || []).map((p) => ({
+          date: p.date || null, // keep as string
+          amount: p.amount === "" || p.amount == null ? 0 : Number(p.amount),
+          cashOrCheck: p.cashOrCheck,
+          interestStartDate: p.interestStartDate || null,
+          note: p.note || null,
+        }));
+        car.set("payments", payments);
+        await car.save();
+        showMessage("✅ 已更新付款資料");
+        return;
+      } else if (tab === RECEIPT_TAB_INDEX) {
+        const receipts = (v.receipts || []).map((r) => ({
+          date: r.date || null,
+          amount: r.amount === "" || r.amount == null ? 0 : Number(r.amount),
+          cashOrCheck: r.cashOrCheck,
+          exchangeDate: r.exchangeDate || null,
+          note: r.note || null,
+        }));
+        car.set("receipts", receipts);
+        await car.save();
+        showMessage("✅ 已更新收款資料");
+        return;
+      } else if (tab === FEE_TAB_INDEX) {
+        const fees = (v.fees || []).map((f) => ({
+          date: f.date || null,
+          item: f.item || null,
+          vendor: f.vendor || null,
+          amount: f.amount === "" || f.amount == null ? 0 : Number(f.amount),
+          cashOrCheck: f.cashOrCheck,
+          note: f.note || null,
+          handler: f.handler || null,
+        }));
+        car.set("fees", fees);
+        await car.save();
+        showMessage("✅ 已更新費用資料");
+        return;
+      }
+
+      router.push("/dashboard");
+    } catch (err: any) {
+      console.error("Save car failed:", err);
+      showMessage(`❌ 儲存失敗：${err?.message ?? err}`);
     }
-
-    const Car = Parse.Object.extend("Car");
-    const car = carId ? Car.createWithoutData(carId) : new Car();
-
-    // pointers
-    if (brandId) {
-      const Brand = Parse.Object.extend("Brand");
-      car.set("brand", Brand.createWithoutData(brandId));
-    } else {
-      car.unset("brand");
-    }
-
-    // top fixed fields
-    car.set("plateNo", v.plateNo);
-    car.set("prevPlateNo", v.prevPlateNo || null);
-
-    // IMPORTANT: keep as strings (schema expects String)
-    car.set("deliverDate", v.deliverDate || null);
-
-    car.set("style", v.style || null);
-    car.set("buyPriceWan", v.buyPriceWan ? Number(v.buyPriceWan) : null);
-    car.set("sellPriceWan", v.sellPriceWan ? Number(v.sellPriceWan) : null);
-    car.set("seriesCategory", v.seriesCategory || null);
-
-    // 基本 tab fields
-    car.set("factoryYM", v.factoryYM || null);
-    car.set("plateYM", v.plateYM || null);
-    car.set("model", v.model || null);
-    car.set(
-      "displacementCc",
-      v.displacementCc ? Number(v.displacementCc) : null
-    );
-    car.set("transmission", v.transmission || null);
-    car.set("color", v.color || null);
-    car.set("engineNo", v.engineNo || null);
-    car.set("vin", v.vin || null);
-    car.set("dealer", v.dealer || null);
-    car.set("equipment", v.equipment || null);
-    car.set("remark", v.remark || null);
-    car.set("condition", v.condition || null);
-
-    // keep as strings
-    car.set("inboundDate", v.inboundDate || null);
-    car.set("promisedDate", v.promisedDate || null);
-    car.set("returnDate", v.returnDate || null);
-
-    car.set("disposition", v.disposition || null);
-
-    car.set("images", Array.isArray(v.images) ? v.images : []);
-
-    // optional: scope by user
-    const u = Parse.User.current();
-    if (u) car.set("owner", u);
-
-    // default status on create
-    if (!carId) car.set("status", "active");
-
-    if (tab === BASIC_TAB_INDEX) {
-      await car.save();
-      showMessage(carId ? "✅ 基本資料已更新" : "✅ 車輛已建立");
-      return;
-    } else if (tab === ORIGINAL_OWNER_TAB_INDEX) {
-      const Owner = Parse.Object.extend("Owner");
-      const owner = origOwnerId
-        ? Owner.createWithoutData(origOwnerId)
-        : new Owner();
-
-      owner.set("name", v.origOwnerName || null);
-      owner.set("idNo", v.origOwnerIdNo || null);
-      owner.set("birth", v.origOwnerBirth ? new Date(v.origOwnerBirth) : null);
-      owner.set("regAddr", v.origOwnerRegAddr || null);
-      owner.set("mailAddr", v.origOwnerMailAddr || null);
-      owner.set("consignorName", v.consignorName || null);
-      owner.set("consignorPhone", v.consignorPhone || null);
-      owner.set("referrerName", v.referrerName || null);
-      owner.set("referrerPhone", v.referrerPhone || null);
-      owner.set("purchasedTransferred", v.purchasedTransferred || null);
-      owner.set("registeredToName", v.registeredToName || null);
-      owner.set("procurementMethod", v.procurementMethod || null);
-      owner.set("note", v.origOwnerNote || null);
-      owner.set(
-        "contractDate",
-        v.origContractDate ? new Date(v.origContractDate) : null
-      );
-      owner.set(
-        "dealPriceWan",
-        v.origDealPriceWan ? Number(v.origDealPriceWan) : null
-      );
-      owner.set(
-        "commissionWan",
-        v.origCommissionWan ? Number(v.origCommissionWan) : null
-      );
-      owner.set("phone", v.origOwnerPhone || null);
-      if (u) owner.set("owner", u);
-
-      await owner.save();
-      car.set("originalOwner", owner);
-      await car.save();
-
-      if (!origOwnerId) setOrigOwnerId(owner.id);
-      showMessage(origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立");
-      return;
-    } else if (tab === DOCUMENT_TAB_INDEX) {
-      const d = v.document || {};
-      const n = (x: any) => (x === "" || x == null ? null : x);
-
-      const docOut = {
-        audioCode: n(d.audioCode),
-        spareKey: n(d.spareKey),
-        certOk: n(d.certOk),
-        license: n(d.license),
-        application: n(d.application),
-        transferPaper: n(d.transferPaper),
-        payoffProof: n(d.payoffProof),
-        inspectDate: n(d.inspectDate), // 'YYYY-MM-DD' string
-        taxCert: n(d.taxCert),
-        factoryCert: n(d.factoryCert),
-        copyFlag: n(d.copyFlag),
-        plate: n(d.plate),
-        taxStatus: n(d.taxStatus),
-        remark: n(d.remark),
-        images: Array.isArray(d.images) ? (d.images as UploadedImage[]) : [],
-      };
-
-      car.set("document", docOut);
-      await car.save();
-      showMessage("✅ 已更新證件資料");
-      return;
-    } else if (tab === INBOUND_TAB_INDEX) {
-      const d = v.inbound || {};
-      const n = (x: any) => (x === "" || x == null ? null : x);
-
-      const inboundOut = {
-        orderNo: n(d.orderNo),
-        keyNo: n(d.keyNo),
-        purchaseMode: n(d.purchaseMode),
-        purchaser: n(d.purchaser),
-        listPriceWan: d.listPriceWan ? Number(d.listPriceWan) : null,
-        note: n(d.note),
-        noteAmountWan: d.noteAmountWan ? Number(d.noteAmountWan) : null,
-        purchaseBonusPct: d.purchaseBonusPct
-          ? Number(d.purchaseBonusPct)
-          : null,
-        newCarPriceWan: d.newCarPriceWan ? Number(d.newCarPriceWan) : null,
-        changeDate: n(d.changeDate),
-        changeMethod: n(d.changeMethod),
-        originalMileageKm: d.originalMileageKm
-          ? Number(d.originalMileageKm)
-          : null,
-        adjustedMileageKm: d.adjustedMileageKm
-          ? Number(d.adjustedMileageKm)
-          : null,
-      };
-
-      car.set("inbound", inboundOut);
-      await car.save();
-      showMessage("✅ 已更新入車資料");
-      return;
-    } else if (tab === INSURANCE_TAB_INDEX) {
-      const d = v.insurance || {};
-      const n = (x: any) => (x === "" || x == null ? null : x);
-
-      const insuranceOut = {
-        insuranceType: n(d.insuranceType),
-        expireDate: n(d.expireDate), // 'YYYY-MM-DD' string
-        insuranceCompany: n(d.insuranceCompany),
-        loanCompany: n(d.loanCompany),
-        contactName: n(d.contactName),
-        contactPhone: n(d.contactPhone),
-        amount: d.amount ? Number(d.amount) : null,
-        installments: d.installments ? Number(d.installments) : null,
-        baseAmount: d.baseAmount ? Number(d.baseAmount) : null,
-        invoice: n(d.invoice),
-        personalName: n(d.personalName),
-        collection: n(d.collection),
-      };
-
-      car.set("insurance", insuranceOut);
-      await car.save();
-      showMessage("✅ 已更新保險/貸款資料");
-      return;
-    } else if (tab === NEW_OWNER_TAB_INDEX) {
-      const Owner = Parse.Object.extend("Owner");
-      const buyer = newOwnerId
-        ? Owner.createWithoutData(newOwnerId)
-        : new Owner();
-
-      buyer.set("name", v.newOwnerName || null);
-      buyer.set("phone", v.newOwnerPhone || null);
-      buyer.set(
-        "contractDate",
-        v.newContractDate ? new Date(v.newContractDate) : null
-      );
-      buyer.set(
-        "dealPriceWan",
-        v.newDealPriceWan ? Number(v.newDealPriceWan) : null
-      );
-      buyer.set(
-        "commissionWan",
-        v.newCommissionWan ? Number(v.newCommissionWan) : null
-      );
-      buyer.set(
-        "handoverDate",
-        v.handoverDate ? new Date(v.handoverDate) : null
-      );
-      buyer.set("idNo", v.newOwnerIdNo || null);
-      buyer.set("birth", v.newOwnerBirth ? new Date(v.newOwnerBirth) : null);
-      buyer.set("regAddr", v.newOwnerRegAddr || null);
-      buyer.set("regZip", v.newOwnerRegZip || null);
-      buyer.set("mailAddr", v.newOwnerMailAddr || null);
-      buyer.set("mailZip", v.newOwnerMailZip || null);
-      buyer.set("buyerAgentName", v.buyerAgentName || null);
-      buyer.set("buyerAgentPhone", v.buyerAgentPhone || null);
-      buyer.set("referrerName2", v.referrerName2 || null);
-      buyer.set("referrerPhone2", v.referrerPhone2 || null);
-      buyer.set("salesmanName", v.salesmanName || null);
-      buyer.set(
-        "salesCommissionPct",
-        v.salesCommissionPct ? Number(v.salesCommissionPct) : null
-      );
-      buyer.set("salesMode", v.salesMode || null);
-      buyer.set("preferredShop", v.preferredShop || null);
-      buyer.set("note", v.newOwnerNote || null);
-      buyer.set("isPeer", v.isPeer === "是"); // 「同行」布林值
-      if (u) buyer.set("owner", u);
-
-      await buyer.save();
-      car.set("newOwner", buyer);
-      car.set("newOwnerEmail", v.newOwnerEmail || "");
-      await car.save();
-
-      if (!newOwnerId) setNewOwnerId(buyer.id);
-      showMessage(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
-      return;
-    } else if (tab === PAYMENT_TAB_INDEX) {
-      const payments = (v.payments || []).map((p) => ({
-        date: p.date || null, // keep as string
-        amount: p.amount === "" || p.amount == null ? 0 : Number(p.amount),
-        cashOrCheck: p.cashOrCheck,
-        interestStartDate: p.interestStartDate || null,
-        note: p.note || null,
-      }));
-      car.set("payments", payments);
-      await car.save();
-      showMessage("✅ 已更新付款資料");
-      return;
-    } else if (tab === RECEIPT_TAB_INDEX) {
-      const receipts = (v.receipts || []).map((r) => ({
-        date: r.date || null,
-        amount: r.amount === "" || r.amount == null ? 0 : Number(r.amount),
-        cashOrCheck: r.cashOrCheck,
-        exchangeDate: r.exchangeDate || null,
-        note: r.note || null,
-      }));
-      car.set("receipts", receipts);
-      await car.save();
-      showMessage("✅ 已更新收款資料");
-      return;
-    } else if (tab === FEE_TAB_INDEX) {
-      const fees = (v.fees || []).map((f) => ({
-        date: f.date || null,
-        item: f.item || null,
-        vendor: f.vendor || null,
-        amount: f.amount === "" || f.amount == null ? 0 : Number(f.amount),
-        cashOrCheck: f.cashOrCheck,
-        note: f.note || null,
-        handler: f.handler || null,
-      }));
-      car.set("fees", fees);
-      await car.save();
-      showMessage("✅ 已更新費用資料");
-      return;
-    }
-
-    router.push("/dashboard");
   };
 
   /* -------------------- render -------------------- */
@@ -889,19 +900,10 @@ function InventoryNewContent() {
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
-                name="deliverDate"
+              <RHFDatePicker
                 control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    label="交車日（年/月/日）"
-                    value={field.value ? dayjs(field.value) : null}
-                    onChange={(v) =>
-                      field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                    }
-                    slotProps={{ textField: DATE_TF_PROPS }}
-                  />
-                )}
+                name="deliverDate"
+                label="交車日（年/月/日）"
               />
             </Grid>
 

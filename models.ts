@@ -1,5 +1,12 @@
 // src/models.ts
 
+
+// _User.dealer : Pointer<Dealer> (required)
+// _User.isAdmin : true | false
+// _User.deviceLimit : number (default 1)
+// _User.isActive : boolean (default true)
+// _User.lastLoginAt : Date
+
 // --------------------
 // Core Enums & Types
 // --------------------

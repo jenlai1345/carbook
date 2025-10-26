@@ -8,6 +8,7 @@ import { DATE_TF_PROPS } from "@/components/mui";
 import { loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "@/components/RHFTextField";
 import RHFDollarTextField from "../RHFDollarTextField";
+import RHFDatePicker from "../RHFDatePicker";
 
 export default function InBoundTab({
   control,
@@ -164,19 +165,10 @@ export default function InBoundTab({
 
         {/* 異動日期 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Controller
-            name="inbound.changeDate"
+          <RHFDatePicker
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="異動日期"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            name="inbound.changeDate"
+            label="異動日期"
           />
         </Grid>
 

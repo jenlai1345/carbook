@@ -2,16 +2,16 @@
 import * as React from "react";
 import { Controller } from "react-hook-form";
 import { Box, TextField, Grid, Autocomplete, Typography } from "@mui/material";
-import { DatePicker } from "@mui/x-date-pickers";
-import dayjs, { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import Parse from "@/lib/parseClient";
-import { DATE_TF_PROPS } from "@/components/mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
 import { DEALER_OPTIONS } from "@/utils/constants";
 import type { Control } from "react-hook-form";
 import type { FormValues } from "@/schemas/carSchemas";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import RHFImageUpload from "@/components/RHFImageUpload";
+import RHFDatePicker from "../RHFDatePicker";
+import RHFYearMonthPicker from "../RHFYearMonthPicker";
 
 type Props = {
   control: Control<FormValues, any, any>; // note the third generic
@@ -30,11 +30,15 @@ export default function BasicTab({ control }: Props) {
 
     (async () => {
       try {
+        const user = Parse.User.current();
+        const dealer = user?.get("dealer"); // ✅ dealer pointer on _User
+        if (!user || !dealer) return;
+
         const Setting = Parse.Object.extend("Setting");
 
         // 整備情形
         const qCond = new Parse.Query(Setting);
-        qCond.equalTo("owner", Parse.User.current());
+        qCond.equalTo("dealer", dealer);
         qCond.equalTo("type", "condition");
         qCond.equalTo("active", true);
         qCond.ascending("order").addAscending("name");
@@ -45,7 +49,7 @@ export default function BasicTab({ control }: Props) {
 
         // 配備
         const qEquip = new Parse.Query(Setting);
-        qEquip.equalTo("owner", Parse.User.current());
+        qEquip.equalTo("dealer", dealer);
         qEquip.equalTo("type", "equipment");
         qEquip.equalTo("active", true);
         qEquip.ascending("order").addAscending("name");
@@ -83,26 +87,12 @@ export default function BasicTab({ control }: Props) {
             name={"factoryYM" as any}
             control={control}
             render={({ field }) => {
-              const refDate = field.value
-                ? dayjs(`${field.value}-01`)
-                : dayjs("2000-01-01");
+              const ym = field.value ? dayjs(`${field.value}-01`) : null;
               return (
-                <DatePicker
+                <RHFYearMonthPicker
+                  control={control}
+                  name="factoryYM"
                   label="出廠（年/月）"
-                  openTo="year"
-                  views={["year", "month"]}
-                  format="YYYY/MM"
-                  value={
-                    field.value ? (dayjs(`${field.value}-01`) as Dayjs) : null
-                  }
-                  referenceDate={refDate}
-                  onChange={(v) => field.onChange(v ? v.format("YYYY-MM") : "")}
-                  slotProps={{
-                    textField: {
-                      ...DATE_TF_PROPS,
-                      inputProps: { placeholder: "YYYY/MM" },
-                    },
-                  }}
                 />
               );
             }}
@@ -111,33 +101,10 @@ export default function BasicTab({ control }: Props) {
 
         {/* 領牌（年/月） */}
         <Grid size={{ xs: 6, md: 4 }}>
-          <Controller
-            name={"plateYM" as any}
+          <RHFYearMonthPicker
             control={control}
-            render={({ field }) => {
-              const refDate = field.value
-                ? dayjs(`${field.value}-01`)
-                : dayjs("2000-01-01");
-              return (
-                <DatePicker
-                  label="領牌（年/月）"
-                  openTo="year"
-                  views={["year", "month"]}
-                  format="YYYY/MM"
-                  value={
-                    field.value ? (dayjs(`${field.value}-01`) as Dayjs) : null
-                  }
-                  referenceDate={refDate}
-                  onChange={(v) => field.onChange(v ? v.format("YYYY-MM") : "")}
-                  slotProps={{
-                    textField: {
-                      ...DATE_TF_PROPS,
-                      inputProps: { placeholder: "YYYY/MM" },
-                    },
-                  }}
-                />
-              );
-            }}
+            name="plateYM"
+            label="領牌（年/月）"
           />
         </Grid>
 
@@ -220,16 +187,20 @@ export default function BasicTab({ control }: Props) {
           <Controller
             name={"dealer" as any}
             control={control}
-            render={({ field }) => (
-              <Autocomplete<string, false, false, false>
-                options={[...DEALER_OPTIONS]}
-                value={field.value ? String(field.value) : null}
-                onChange={(_e, v) => field.onChange(v ?? "")}
-                renderInput={(params) => (
-                  <TextField {...params} label="代理商" fullWidth />
-                )}
-              />
-            )}
+            render={({ field }) => {
+              const val = typeof field.value === "string" ? field.value : null;
+
+              return (
+                <Autocomplete<string, false, false, false>
+                  options={DEALER_OPTIONS as readonly string[]}
+                  value={val}
+                  onChange={(_e, v) => field.onChange(v ?? "")}
+                  renderInput={(params) => (
+                    <TextField {...params} label="代理商" fullWidth />
+                  )}
+                />
+              );
+            }}
           />
         </Grid>
 
@@ -289,53 +260,26 @@ export default function BasicTab({ control }: Props) {
 
         {/* 三個日曆 */}
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
-            name={"inboundDate" as any}
+          <RHFDatePicker
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="進廠日（年/月/日）"
-                value={field.value ? (dayjs(field.value) as Dayjs) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            name="inboundDate"
+            label="進廠日（年/月/日）"
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
-            name={"promisedDate" as any}
+          <RHFDatePicker
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="預交日（年/月/日）"
-                value={field.value ? (dayjs(field.value) as Dayjs) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            name="promisedDate"
+            label="預交日（年/月/日）"
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
-            name={"returnDate" as any}
+          <RHFDatePicker
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="回公司日（年/月/日）"
-                value={field.value ? (dayjs(field.value) as Dayjs) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            name="returnDate"
+            label="回公司日（年/月/日）"
           />
         </Grid>
 

@@ -35,7 +35,7 @@ import { zhTW as pickersZhTW } from "@mui/x-date-pickers/locales";
 import { getParse } from "../lib/parseClient";
 import Parse from "../lib/parseClient";
 import { upsertBrand, upsertSetting } from "@/lib/settingsUpserts";
-import { useConfirm } from "@/components/ConfirmProvider"; // ✅ added
+import { useConfirm } from "@/components/ConfirmProvider";
 
 type PUser = Parse.User<Parse.Attributes>;
 
@@ -102,7 +102,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
-  const { confirm: openConfirm, setBusy } = useConfirm(); // ✅ useConfirm hook
+  const { confirm: openConfirm, setBusy } = useConfirm();
 
   // 取得目前使用者（client-only）
   const [user, setUser] = React.useState<PUser | null>(null);
@@ -117,7 +117,6 @@ export default function SettingsPage() {
   // 只在瀏覽器端初始化並取得使用者
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const Parse = getParse();
     let alive = true;
 
     (async () => {
@@ -135,17 +134,19 @@ export default function SettingsPage() {
     };
   }, []);
 
-  // 讀取資料（等 userReady + user 才跑）
+  // 讀取資料（以 dealer 範圍）
   const load = React.useCallback(async () => {
     if (!userReady || !user) return;
     const sessionToken = user.getSessionToken?.();
     const Parse = getParse();
+    const dealer = user.get("dealer"); // ✅ dealer pointer on _User
+    if (!dealer) return;
 
     setLoading(true);
     try {
       if (isBrand) {
         const q = new Parse.Query("Brand");
-        q.equalTo("owner", user);
+        q.equalTo("dealer", dealer); // ✅ scope by dealer
         q.ascending("name");
         const list = await q.find({ sessionToken });
         setRows(
@@ -158,7 +159,7 @@ export default function SettingsPage() {
         );
       } else {
         const q = new Parse.Query("Setting");
-        q.equalTo("owner", user);
+        q.equalTo("dealer", dealer); // ✅ scope by dealer
         q.equalTo("type", current);
         q.ascending("order").addAscending("createdAt");
         const list = await q.find({ sessionToken });
@@ -185,7 +186,7 @@ export default function SettingsPage() {
     load();
   }, [load]);
 
-  // 新增或更新
+  // 新增或更新（把 dealerId 傳給 upsertBrand/Setting）
   const onSubmit = handleSubmit(async (data) => {
     if (!user) return;
 
@@ -197,8 +198,11 @@ export default function SettingsPage() {
         return;
       }
 
+      const dealer = user.get("dealer");
+      const dealerId = dealer?.id as string | undefined; // ✅
+
       if (isBrand) {
-        await upsertBrand({ id, name, active: data.active });
+        await upsertBrand({ id, name, active: data.active, dealerId }); // ✅
       } else {
         const orderNum =
           data.order !== "" && data.order !== undefined
@@ -210,6 +214,7 @@ export default function SettingsPage() {
           name,
           order: orderNum,
           active: data.active,
+          dealerId, // ✅
         });
       }
 
@@ -229,7 +234,7 @@ export default function SettingsPage() {
     setValue("active", !!r.active);
   };
 
-  // ✅ 硬刪除（真的刪除 Parse 物件）
+  // 刪除（硬刪）
   const remove = async (id: string, name?: string) => {
     if (!user) return;
 
@@ -252,7 +257,7 @@ export default function SettingsPage() {
         const Brand = Parse.Object.extend("Brand");
         const obj = new Brand();
         obj.id = id;
-        await obj.destroy({ sessionToken }); // 💥 完全刪除
+        await obj.destroy({ sessionToken });
       } else {
         const Setting = Parse.Object.extend("Setting");
         const obj = new Setting();
@@ -453,7 +458,7 @@ export default function SettingsPage() {
                             <IconButton
                               size="small"
                               color="error"
-                              onClick={() => remove(r.id, r.name)} // ✅ updated
+                              onClick={() => remove(r.id, r.name)}
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>

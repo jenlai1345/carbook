@@ -18,3 +18,6 @@ export const SERIES_CATEGORIES = [
   "其它",
 ] as const;
 export const DEALER_OPTIONS = ["外匯", "貿易商", "總代理", "美規"] as const;
+
+export const COLOR_ADMIN = "#ee6c4d";
+export const COLOR_STAFF = "#3d5a80";

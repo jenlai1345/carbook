@@ -219,7 +219,7 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error("[Login] SDK fallback error:", err);
       const code = err?.code;
-      if (code === 101) setError("帳號或密碼錯誤");
+      if (code === 101) setError("登入Email或密碼錯誤");
       else if (code === 209) {
         await Parse.User.logOut().catch(() => {});
         setError("登入狀態已失效，請重新登入。");
@@ -341,7 +341,7 @@ export default function LoginPage() {
                 登入你的帳號
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                歡迎回來！請輸入帳號與密碼繼續
+                歡迎回來！請輸入Email與密碼繼續
               </Typography>
             </Box>
           </Box>
@@ -349,9 +349,9 @@ export default function LoginPage() {
           <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.18)" }} />
 
           <Box display="grid" gap={2.2}>
-            <LabeledField label="帳號">
+            <LabeledField label="Email">
               <TextField
-                placeholder="輸入帳號"
+                placeholder="輸入Email"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"

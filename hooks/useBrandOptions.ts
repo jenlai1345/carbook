@@ -56,13 +56,14 @@ export function useBrandOptions(
         // 等 user ready（避免 owner 為 null 查不到資料）
         const user =
           (await Parse.User.currentAsync()) || Parse.User.current() || null;
-        if (!user || !userId) {
+        const dealer = user?.get("dealer");
+        if (!user || !userId || !dealer) {
           // 沒 user 就不要查；但保留快取顯示
           return;
         }
 
         const q = new Parse.Query("Brand");
-        q.equalTo("owner", user);
+        q.equalTo("dealer", dealer);
         if (nameFilter) q.matches("name", nameFilter, "i");
         q.ascending("name");
         q.limit(1000);

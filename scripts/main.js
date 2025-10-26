@@ -1,30 +1,11 @@
-// The example below shows you how a cloud code function looks like.
+// cloud/main.js
+/* eslint-disable no-undef */
 
-/* Parse Server 3.x
- * Parse.Cloud.define("hello", (request) => {
- * 	return("Hello world!");
- * });
- */
+// ============== Load user/dealer management (no member table) ==============
+require("./users_dealer");
 
-/* Parse Server 2.x
- * Parse.Cloud.define("hello", function(request, response){
- * 	response.success("Hello world!");
- * });
- */
-
-// To see it working, you only need to call it through SDK or REST API.
-// Here is how you have to call it via REST API:
-
-/** curl -X POST \
- * -H "X-Parse-Application-Id: lxGFw0aXt28sXA40SdNFP2bri4jWxag7C3LOueVj" \
- * -H "X-Parse-REST-API-Key: 7AUx2fYHvmYdHtapj9KtDIZSt8yh86E8bKp7fuI5" \
- * -H "Content-Type: application/json" \
- * -d "{}" \
- * https://parseapi.back4app.com/functions/hello
- */
-
-// ===== DEFAULTS (per-user) =====
-const DEFAULTS = {
+// ============== DEFAULTS (per dealer) available to users_dealer.js =========
+global.DEFAULTS = {
   brands: [
     // JP
     "Toyota",
@@ -51,7 +32,7 @@ const DEFAULTS = {
     "MINI",
     "Opel",
     "Smart",
-    // SE / Nordics
+    // Nordics
     "Volvo",
     "Polestar",
     "Saab",
@@ -91,15 +72,9 @@ const DEFAULTS = {
     "MG",
     "Luxgen",
   ],
-
   settings: {
-    // 進貨模式
     importStyle: [],
-
-    // 採購員
     purchaser: ["王小明"],
-
-    // 採購方式
     purchaseMethod: [
       "一般",
       "介紹",
@@ -109,11 +84,7 @@ const DEFAULTS = {
       "回籠換車",
       "來店",
     ],
-
-    // 異動方式
     moveMethod: ["新增", "調價", "整備", "保留", "出清", "備註", "其他"],
-
-    // 保險類別
     insuranceType: [
       "強制險",
       "任意險",
@@ -126,8 +97,6 @@ const DEFAULTS = {
       "代步車",
       "其他",
     ],
-
-    // 保險公司（台灣常見產險，依實務調整）
     insuranceCompany: [
       "富邦產險",
       "國泰產險",
@@ -146,8 +115,6 @@ const DEFAULTS = {
       "中信產險",
       "其他",
     ],
-
-    // 貸款公司 / 銀行（常見）
     loanCompany: [
       "裕融",
       "中租",
@@ -170,14 +137,8 @@ const DEFAULTS = {
       "日盛銀行",
       "其他",
     ],
-
-    // 銷售員（示例，可自行修改）
     salesperson: ["王小明"],
-
-    // 過戶名下
     registeredToName: ["王小明"],
-
-    // 銷售方式（付款 / 承作方式）
     salesMethod: [
       "8891刊登",
       "ABC網路",
@@ -186,8 +147,6 @@ const DEFAULTS = {
       "TAVA介紹",
       "U-CAR網路",
     ],
-
-    // 銷貨模式（salesMode）
     saleStyle: [
       "小賣",
       "小賣分紅",
@@ -197,9 +156,7 @@ const DEFAULTS = {
       "自售",
       "行將棄標",
     ],
-
-    // 特約廠
-    specialShop: [
+    preferredShop: [
       "GOO",
       "SAVE認證",
       "上全零件",
@@ -208,11 +165,7 @@ const DEFAULTS = {
       "友成玻璃",
       "王冠音響",
     ],
-
-    // 保養廠
     maintenanceShop: [],
-
-    // 整備情形
     condition: [
       "待估",
       "排程",
@@ -229,8 +182,6 @@ const DEFAULTS = {
       "音響",
       "隔熱紙",
     ],
-
-    // 配備
     equipment: [
       "倒車顯影",
       "盲點偵測(BSD)",
@@ -252,8 +203,6 @@ const DEFAULTS = {
       "自動遠近光",
       "全速域跟車",
     ],
-
-    // 費用項目
     feeItem: [
       "過戶規費",
       "牌照稅",
@@ -270,142 +219,244 @@ const DEFAULTS = {
       "廣告費",
       "其他",
     ],
-
-    //處置
     disposal: [],
-
-    // 其它費用項目
     otherFeeItem: ["茶水費", "雜項", "補差額", "折讓", "其他"],
   },
 };
 
+// ============== Utilities (dealer model) ===================================
+function ptr(className, objectId) {
+  return { __type: "Pointer", className, objectId };
+}
 function mkKey(s) {
   return String(s || "")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ");
+    .normalize("NFKC")
+    .replace(/\s+/g, "-");
 }
 
-// ─── 安全版 hasAny：用 count() + try/catch ─────────────────────────────────────
-const hasAny = async (className, where = {}) => {
-  try {
-    const q = new Parse.Query(className);
-    for (const [k, v] of Object.entries(where)) q.equalTo(k, v);
-    const n = await q.count({ useMasterKey: true });
-    return n > 0;
-  } catch (err) {
-    console.error(`[hasAny] ${className} failed:`, err);
-    // 把錯誤吞掉，避免影響 login；回傳 false 表示「當作沒有資料」
-    return false;
+async function resolveDealer(reqOrUser) {
+  // Case 1: got a _User or any Parse.Object-like with .get()
+  if (
+    reqOrUser?.className === "_User" ||
+    typeof reqOrUser?.get === "function"
+  ) {
+    const dealer = reqOrUser.get("dealer");
+    if (!dealer?.id) throw new Error("User has no dealer assigned");
+    return dealer; // pointer is fine for equality in queries
   }
-};
 
-// ─── createExampleCarForUser：用 count() 並包 try/catch ─────────────────────────
-async function createExampleCarForUser(user) {
+  // Case 2: got a Cloud Code request
+  const req = reqOrUser;
+  const { user, params = {}, master } = req || {};
+
+  // ✅ Prefer explicit dealerId from params (works for master/no-session calls)
+  const dealerId =
+    params.dealerId ||
+    params.dealer?.id ||
+    params.dealerIdRaw ||
+    params.dealerObjectId;
+  if (dealerId) {
+    return ptr("Dealer", String(dealerId)); // your helper that returns a pointer
+  }
+
+  // Fall back to req.user (when present)
+  if (user && typeof user.get === "function") {
+    const dealer = user.get("dealer");
+    if (!dealer?.id) throw new Error("User has no dealer assigned");
+    return dealer;
+  }
+
+  // If master but no dealerId was provided, be explicit:
+  if (master) {
+    throw new Error(
+      "dealerId is required when calling without a logged-in user"
+    );
+  }
+
+  // Otherwise, truly “not logged in”
+  throw new Error("Not logged in");
+}
+
+Parse.Cloud.define("whoAmI", async (req) => {
+  const u = req.user;
+  if (!u)
+    return { userId: null, dealerId: null, isAdmin: false, role: "viewer" };
+  const dealer = u.get("dealer") || null;
+  const role = u.get("role") || "viewer";
+  const isAdmin = !!u.get("isAdmin") || role === "owner" || role === "admin";
+  return {
+    userId: u.id,
+    email: u.get("email") ?? u.get("username") ?? null,
+    name: u.get("name") ?? null,
+    role,
+    dealerId: dealer?.id ?? null,
+    isAdmin,
+  };
+});
+
+// ============== Example car seeding per dealer (used by users_dealer.js) ===
+global.createExampleCarForDealer = async function createExampleCarForDealer(
+  dealer,
+  user
+) {
   try {
     const Car = Parse.Object.extend("Car");
     const n = await new Parse.Query(Car)
-      .equalTo("owner", user)
+      .equalTo("dealer", dealer)
       .count({ useMasterKey: true });
     if (n > 0) return;
 
-    const toyota = await getOrCreateToyotaFor(user).catch((e) => {
-      console.error("[createExampleCarForUser] getOrCreateToyotaFor:", e);
-      return null;
-    });
+    // ensure Toyota exists for this dealer
+    try {
+      const sessionToken = user?.getSessionToken?.();
+      await Parse.Cloud.run(
+        "upsertBrand",
+        { name: "Toyota", dealerId: dealer.id },
+        sessionToken ? { sessionToken } : {}
+      );
+    } catch (e) {
+      console.error(
+        "[createExampleCarForDealer] upsertBrand Toyota failed:",
+        e
+      );
+    }
+
+    const Brand = Parse.Object.extend("Brand");
+    const toyota = await new Parse.Query(Brand)
+      .equalTo("dealer", dealer)
+      .equalTo("nameKey", "toyota")
+      .first({ useMasterKey: true });
 
     const car = new Car();
-    car.set("owner", user);
+    car.set("dealer", dealer);
     car.set("isExample", true);
-    car.set("model", "2023");
+    car.set("model", "2024");
     car.set("status", "active");
     car.set("buyPriceWan", 63);
-    car.set("sellPriceWan", 68);
+    car.set("sellPriceWan", 70);
     car.set("transmission", "A");
-    car.set("inboundDate", "2025-08-12");
+    car.set("inboundDate", "2025/08/12");
     car.set("color", "白");
     car.set("engineNo", "SR33BK-248628");
     car.set("plateNo", "CAR-1688");
     car.set("displacementCc", 1798);
     car.set("vin", "JTR20912FG094J");
-    car.set("factoryYM", "2024-06");
-    car.set("plateYM", "2024-12");
-    car.set("style", "Corolla Cross");
+    car.set("factoryYM", "2024/06");
+    car.set("plateYM", "2024/10");
+    car.set("style", "(範例)Corolla Cross");
     car.set("seriesCategory", "日系");
     if (toyota) car.set("brand", toyota);
 
     await car.save(null, { useMasterKey: true });
   } catch (e) {
-    console.error("[createExampleCarForUser] failed:", e);
+    console.error("[createExampleCarForDealer] failed:", e);
   }
+};
+
+// ---------- Login enforcement (no member table) ----------
+
+if (Parse.Cloud.beforeLogin) {
+  Parse.Cloud.beforeLogin(async (req) => {
+    const u = req.object;
+    if (!u) {
+      throw new Parse.Error(101, "無法登入"); // 或 141，都可
+    }
+    if (u.get("isActive") === false) throw new Error("帳號已被停用");
+    const dealerPtr = u.get("dealer");
+    if (!dealerPtr?.id) throw new Error("用戶沒有歸屬的車商");
+
+    const dealer = await dealerPtr.fetch({ useMasterKey: true });
+
+    if (dealer && dealer.get("isActive") === false) {
+      throw new Parse.Error(101, "車商帳號停用中");
+    }
+  });
 }
 
-async function getOrCreateToyotaFor(user) {
-  try {
-    const sessionToken = user.getSessionToken?.();
-    await Parse.Cloud.run(
-      "upsertBrand",
-      { name: "Toyota" },
-      sessionToken ? { sessionToken } : {}
-    );
+if (Parse.Cloud.afterLogin) {
+  Parse.Cloud.afterLogin(async (req) => {
+    const u = req.object;
+    if (!u) return;
 
-    const Brand = Parse.Object.extend("Brand");
-    const toyota = await new Parse.Query(Brand)
-      .equalTo("owner", user)
-      .equalTo("nameKey", "toyota")
-      .first({ useMasterKey: true });
-    return toyota || null;
-  } catch (e) {
-    console.error("[getOrCreateToyotaFor] failed:", e);
-    return null;
-  }
-}
-
-// ─── afterLogin：任何一段出錯都不會中斷整個登入流程 ───────────────────────────
-Parse.Cloud.afterLogin(async (request) => {
-  const user = request.user;
-  if (!user) return;
-
-  // 可用環境變數快速停用 seeding（若要先確認錯誤來源）
-  if (process.env.DISABLE_SEED === "1") {
-    console.log("[afterLogin] Seeding disabled by env");
-    return;
-  }
-
-  try {
-    // brands: seed only if none
-    const hasBrand = await hasAny("Brand", { owner: user });
-    if (!hasBrand) {
-      const sessionToken = user.getSessionToken?.();
-      for (const name of DEFAULTS.brands || []) {
-        try {
-          await Parse.Cloud.run(
-            "upsertBrand",
-            { name },
-            sessionToken ? { sessionToken } : {}
-          );
-        } catch (e) {
-          console.error(`[afterLogin] upsertBrand(${name}) failed:`, e);
-        }
-      }
+    // write lastLoginAt
+    try {
+      u.set("lastLoginAt", new Date());
+      await u.save(null, { useMasterKey: true });
+    } catch (e) {
+      console.error("[afterLogin] save lastLoginAt failed:", e);
     }
 
-    // settings: type-by-type seed only if empty
-    const entries = Object.entries(DEFAULTS.settings || {});
-    for (const [type, list] of entries) {
-      try {
-        const exists = await hasAny("Setting", { owner: user, type });
-        if (exists) continue;
+    // deviceLimit
+    try {
+      const limit = Math.max(1, Number(u.get("deviceLimit") ?? 1));
+      const sessions = await listActiveSessions(u); // your helper
+      const overflow = sessions.length - limit;
+      if (overflow > 0) {
+        await Parse.Object.destroyAll(sessions.slice(0, overflow), {
+          useMasterKey: true,
+        });
+      }
+    } catch (e) {
+      console.error("[afterLogin] deviceLimit enforcement failed:", e);
+    }
 
-        const arr = Array.isArray(list) ? list : [];
-        const sessionToken = user.getSessionToken?.();
-        let i = 1;
-        for (const name of arr) {
+    // ---- Seeding ----
+    if (process.env.DISABLE_SEED === "1") return;
+    if (!global.DEFAULTS) {
+      console.warn("[afterLogin] DEFAULTS not loaded; skip seeding.");
+      return;
+    }
+
+    try {
+      const dealerPtr = u.get("dealer");
+      if (!dealerPtr?.id) {
+        console.warn("[afterLogin] user has no dealer; skip seeding.");
+        return;
+      }
+
+      // fetch the dealer to be safe (and to pass CLP)
+      const dealer = await dealerPtr.fetch({ useMasterKey: true });
+      const dealerId = dealer.id;
+
+      // ---- Seed Brands (only if none) ----
+      const Brand = Parse.Object.extend("Brand");
+      const brandCount = await new Parse.Query(Brand)
+        .equalTo("dealer", dealer) // pointer equality is fine
+        .count({ useMasterKey: true });
+
+      if (brandCount === 0) {
+        for (const name of global.DEFAULTS.brands || []) {
+          try {
+            await Parse.Cloud.run(
+              "upsertBrand",
+              { name, dealerId },
+              { useMasterKey: true } // ← IMPORTANT
+            );
+          } catch (e) {
+            console.error(`[afterLogin] upsertBrand(${name}) failed:`, e);
+          }
+        }
+      }
+
+      // ---- Seed Settings by type (only if none) ----
+      const Setting = Parse.Object.extend("Setting");
+      const entries = Object.entries(global.DEFAULTS.settings || {});
+      for (const [type, list] of entries) {
+        const cnt = await new Parse.Query(Setting)
+          .equalTo("dealer", dealer)
+          .equalTo("type", type)
+          .count({ useMasterKey: true });
+        if (cnt > 0) continue;
+
+        let order = 1;
+        for (const name of Array.isArray(list) ? list : []) {
           try {
             await Parse.Cloud.run(
               "upsertSetting",
-              { type, name, order: i++ },
-              sessionToken ? { sessionToken } : {}
+              { type, name, order: order++, dealerId },
+              { useMasterKey: true } // ← IMPORTANT
             );
           } catch (e) {
             console.error(
@@ -414,52 +465,54 @@ Parse.Cloud.afterLogin(async (request) => {
             );
           }
         }
-      } catch (e) {
-        console.error(`[afterLogin] seeding type=${type} failed:`, e);
       }
+
+      // ---- Example Car (optional) ----
+      if (typeof global.createExampleCarForDealer === "function") {
+        try {
+          await global.createExampleCarForDealer(dealer, u);
+        } catch (e) {
+          console.error("[afterLogin] createExampleCarForDealer failed:", e);
+        }
+      }
+    } catch (e) {
+      console.error("[afterLogin] per-dealer seeding failed:", e);
     }
+  });
+}
 
-    await createExampleCarForUser(user);
-  } catch (e) {
-    console.error("[afterLogin] top-level failed:", e);
-    // 不 throw，避免影響登入
-  }
-});
-
+// ============== Hooks: Brand / Setting (per dealer uniqueness) =============
 Parse.Cloud.beforeSave("Brand", async (req) => {
   const o = req.object;
-  const user = req.user || o.get("owner");
-  if (!user) throw new Error("Not logged in");
-
+  const dealer = o.get("dealer") || (await resolveDealer(req));
   const raw = (o.get("name") || "").trim();
   if (!raw) throw new Error("品牌名稱不可為空白");
 
-  o.set("owner", user);
+  o.set("dealer", dealer);
   o.set("name", raw);
   o.set("nameKey", mkKey(raw));
   if (o.get("active") === undefined) o.set("active", true);
 
   const q = new Parse.Query("Brand")
-    .equalTo("owner", user)
+    .equalTo("dealer", dealer)
     .equalTo("nameKey", o.get("nameKey"));
   if (o.id) q.notEqualTo("objectId", o.id);
+
   const dup = await q.first({ useMasterKey: true });
   if (dup && dup.get("active") !== false && o.get("active") !== false) {
-    throw new Error("相同品牌已存在");
+    throw new Error("相同品牌已存在（同 dealer）");
   }
 });
 
 Parse.Cloud.beforeSave("Setting", async (req) => {
   const o = req.object;
-  const user = req.user || o.get("owner");
-  if (!user) throw new Error("Not logged in");
-
+  const dealer = o.get("dealer") || (await resolveDealer(req));
   const type = (o.get("type") || "").trim();
   const raw = (o.get("name") || "").trim();
   if (!type) throw new Error("Setting.type 不可為空白");
   if (!raw) throw new Error("Setting.name 不可為空白");
 
-  o.set("owner", user);
+  o.set("dealer", dealer);
   o.set("type", type);
   o.set("name", raw);
   o.set("nameKey", mkKey(raw));
@@ -467,78 +520,88 @@ Parse.Cloud.beforeSave("Setting", async (req) => {
   if (o.get("order") === undefined) o.set("order", 999);
 
   const q = new Parse.Query("Setting")
-    .equalTo("owner", user)
+    .equalTo("dealer", dealer)
     .equalTo("type", type)
     .equalTo("nameKey", o.get("nameKey"));
   if (o.id) q.notEqualTo("objectId", o.id);
+
   const dup = await q.first({ useMasterKey: true });
   if (dup && dup.get("active") !== false && o.get("active") !== false) {
-    throw new Error("同類型下相同名稱已存在");
+    throw new Error("同類型下相同名稱已存在（同 dealer）");
   }
 });
 
-Parse.Cloud.define("upsertBrand", async (req) => {
-  const user = req.user;
-  if (!user) throw "Not logged in";
-  const name = (req.params?.name || "").trim();
-  if (!name) throw "Missing brand name";
+// ============== Upserts: Brand / Setting (per dealer) ======================
+Parse.Cloud.define(
+  "upsertBrand",
+  async (req) => {
+    const { params, user, master } = req;
+    const dealer = await resolveDealer(req);
+    const name = (params?.name || "").trim();
+    if (!name) throw "Missing brand name";
 
-  const Brand = Parse.Object.extend("Brand");
-  const nameKey = mkKey(name);
+    const Brand = Parse.Object.extend("Brand");
+    const nameKey = mkKey(name);
 
-  const exist = await new Parse.Query(Brand)
-    .equalTo("owner", user)
-    .equalTo("nameKey", nameKey)
-    .first({ useMasterKey: true });
+    const exist = await new Parse.Query(Brand)
+      .equalTo("dealer", dealer)
+      .equalTo("nameKey", nameKey)
+      .first({ useMasterKey: true });
 
-  if (exist) {
-    exist.set("name", name);
-    exist.set("active", true);
-    await exist.save(null, { useMasterKey: true });
-    return { id: exist.id, revived: true };
-  }
+    if (exist) {
+      exist.set("name", name);
+      exist.set("active", true);
+      await exist.save(null, { useMasterKey: true });
+      return { id: exist.id, revived: true };
+    }
 
-  const b = new Brand();
-  b.set("owner", user);
-  b.set("name", name);
-  b.set("nameKey", nameKey);
-  b.set("active", true);
-  await b.save(null, { useMasterKey: true });
-  return { id: b.id, revived: false };
-});
+    const b = new Brand();
+    b.set("dealer", dealer);
+    b.set("name", name);
+    b.set("nameKey", nameKey);
+    b.set("active", true);
+    await b.save(null, { useMasterKey: true });
+    return { id: b.id, revived: false };
+  },
+  { requireUser: false }
+);
 
-Parse.Cloud.define("upsertSetting", async (req) => {
-  const user = req.user;
-  if (!user) throw "Not logged in";
-  const type = (req.params?.type || "").trim();
-  const name = (req.params?.name || "").trim();
-  const order = req.params?.order;
-  if (!type || !name) throw "Missing type/name";
+Parse.Cloud.define(
+  "upsertSetting",
+  async (req) => {
+    const { params, user, master } = req;
+    const dealer = await resolveDealer(req);
+    const type = (params?.type || "").trim();
+    const name = (params?.name || "").trim();
+    const order = params?.order;
+    if (!type || !name) throw "Missing type/name";
 
-  const Setting = Parse.Object.extend("Setting");
-  const nameKey = mkKey(name);
+    const Setting = Parse.Object.extend("Setting");
+    const nameKey = mkKey(name);
 
-  const exist = await new Parse.Query(Setting)
-    .equalTo("owner", user)
-    .equalTo("type", type)
-    .equalTo("nameKey", nameKey)
-    .first({ useMasterKey: true });
+    const exist = await new Parse.Query(Setting)
+      .equalTo("dealer", dealer)
+      .equalTo("type", type)
+      .equalTo("nameKey", nameKey)
+      .first({ useMasterKey: true });
 
-  if (exist) {
-    exist.set("name", name);
-    exist.set("active", true);
-    if (typeof order === "number") exist.set("order", order);
-    await exist.save(null, { useMasterKey: true });
-    return { id: exist.id, revived: true };
-  }
+    if (exist) {
+      exist.set("name", name);
+      exist.set("active", true);
+      if (typeof order === "number") exist.set("order", order);
+      await exist.save(null, { useMasterKey: true });
+      return { id: exist.id, revived: true };
+    }
 
-  const s = new Setting();
-  s.set("owner", user);
-  s.set("type", type);
-  s.set("name", name);
-  s.set("nameKey", nameKey);
-  s.set("active", true);
-  s.set("order", typeof order === "number" ? order : 999);
-  await s.save(null, { useMasterKey: true });
-  return { id: s.id, revived: false };
-});
+    const s = new Setting();
+    s.set("dealer", dealer);
+    s.set("type", type);
+    s.set("name", name);
+    s.set("nameKey", nameKey);
+    s.set("active", true);
+    s.set("order", typeof order === "number" ? order : 999);
+    await s.save(null, { useMasterKey: true });
+    return { id: s.id, revived: false };
+  },
+  { requireUser: false }
+);

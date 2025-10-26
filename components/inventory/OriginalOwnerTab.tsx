@@ -12,13 +12,11 @@ import {
   Grid,
 } from "@mui/material";
 import { Controller, Control, FieldErrors, useWatch } from "react-hook-form";
-import { DatePicker } from "@mui/x-date-pickers";
-import dayjs from "dayjs";
-import { DATE_TF_PROPS } from "../mui";
 import { useCarSnackbar } from "../CarSnackbarProvider";
 import { applyZipPrefix, loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "../RHFTextField";
 import RHFDollarTextField from "../RHFDollarTextField";
+import RHFDatePicker from "../RHFDatePicker";
 
 export type OriginalOwnerForm = {
   origOwnerName: string;
@@ -154,37 +152,15 @@ export default function OriginalOwnerTab({
           />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
-          <Controller
-            name="origOwnerBirth"
-            control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="生日"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
-          />
+          <RHFDatePicker control={control} name="origOwnerBirth" label="生日" />
         </Grid>
 
         {/* 第二列：合約日期 / 成交價 / 佣金 / 原車主電話 */}
         <Grid size={{ xs: 12, md: 3 }}>
-          <Controller
-            name="origContractDate"
+          <RHFDatePicker
             control={control}
-            render={({ field }) => (
-              <DatePicker
-                label="合約日期（年/月/日）"
-                value={field.value ? dayjs(field.value) : null}
-                onChange={(v) =>
-                  field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                }
-                slotProps={{ textField: DATE_TF_PROPS }}
-              />
-            )}
+            name="origContractDate"
+            label="合約日期（年/月/日）"
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
