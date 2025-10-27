@@ -21,6 +21,7 @@ import {
   Snackbar,
 } from "@mui/material";
 import { Eye, EyeOff, CarFront, ShieldCheck } from "lucide-react";
+import Parse from "../lib/parseClient";
 
 /** Brand color */
 const CARBOOK_BLUE = "#1e88e5";
