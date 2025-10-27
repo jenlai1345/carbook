@@ -1027,7 +1027,7 @@ function InventoryNewContent() {
               <RHFDollarTextField
                 control={control}
                 name="sellPriceWan"
-                label="賣價"
+                label="售價"
                 fullWidth
               />
             </Grid>
