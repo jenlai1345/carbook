@@ -247,7 +247,7 @@ export default function OriginalOwnerTab({
           <RHFTextField
             control={control}
             name="consignorPhone"
-            label="電話"
+            label="代售人電話"
             fullWidth
           />
         </Grid>
@@ -263,7 +263,7 @@ export default function OriginalOwnerTab({
           <RHFTextField
             control={control}
             name="referrerPhone"
-            label="電話"
+            label="介紹人電話"
             fullWidth
           />
         </Grid>

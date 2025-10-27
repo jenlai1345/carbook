@@ -41,6 +41,7 @@ const CarToolbarImpl: React.FC<HLToolbarProps> = ({
   sx,
 }) => {
   const [dealerName, setDealerName] = React.useState<string>("");
+  const [userName, setUserName] = React.useState<string>("");
   const [hasUser, setHasUser] = React.useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useLocalStorage("isAdmin", false);
 
@@ -50,16 +51,25 @@ const CarToolbarImpl: React.FC<HLToolbarProps> = ({
       if (!user) {
         setHasUser(false);
         setIsAdmin(false);
+        setUserName("");
+        setDealerName("");
         return;
       }
       setHasUser(true);
+      // user display name (prefer "name", fallback to "username" or "email")
+      const uName =
+        (user.get("name") as string) ||
+        (user.get("username") as string) ||
+        (user.get("email") as string) ||
+        "";
+      setUserName(uName);
+
       const dealer = await getCurrentDealer();
-      setDealerName(dealer?.get("name") || "");
+      setDealerName((dealer?.get("name") as string) || "");
       setIsAdmin(!!user.get("isAdmin"));
     };
     void init();
-  }, []);
-
+  }, [setIsAdmin]);
 
   const handleLogout = async () => {
     try {
@@ -70,9 +80,16 @@ const CarToolbarImpl: React.FC<HLToolbarProps> = ({
     }
   };
 
-  const decoratedTitle = dealerName
-    ? `${dealerName}${isAdmin ? "（管理者）" : ""}`
-    : "";
+  // Build the right-side label:
+  // - "Dealer — User（管理者）" if admin
+  // - "Dealer — User" otherwise
+  // - If dealer missing: "User（管理者）" or "User"
+  // - If user missing (shouldn't happen when logged in): just dealer
+  const pieces = [
+    dealerName || null,
+    userName ? `${userName}${isAdmin ? "（管理者）" : ""}` : null,
+  ].filter(Boolean);
+  const decoratedTitle = pieces.join(" — ");
 
   return (
     <AppBar
@@ -147,7 +164,7 @@ const CarToolbarImpl: React.FC<HLToolbarProps> = ({
         {/* Optional right-side slot (e.g., buttons) */}
         {rightSlot ? <Box sx={{ ml: 1 }}>{rightSlot}</Box> : null}
 
-        {/* Dealer name → /account + Logout */}
+        {/* Dealer/User display → /account + Logout */}
         {(hasUser || dealerName) && (
           <Box
             sx={{
@@ -168,7 +185,7 @@ const CarToolbarImpl: React.FC<HLToolbarProps> = ({
                 fontWeight: 600,
                 lineHeight: 1.8,
                 whiteSpace: "nowrap",
-                maxWidth: 280,
+                maxWidth: 360, // widened a bit to fit "Dealer — User"
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 cursor: "pointer",
