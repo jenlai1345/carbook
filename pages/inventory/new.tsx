@@ -20,8 +20,11 @@ import CarToolbar from "@/components/CarToolbar";
 import {
   a11yProps,
   ensureBrandByName,
+  round2,
+  strEq,
   toDateInput,
   toDateStr,
+  toNum,
   useDebounce,
 } from "@/utils/helpers";
 import OriginalOwnerTab from "@/components/inventory/OriginalOwnerTab";
@@ -61,6 +64,8 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { useBrandOptions } from "@/hooks/useBrandOptions";
 import RHFDollarTextField from "@/components/RHFDollarTextField";
 import RHFDatePicker from "@/components/RHFDatePicker";
+import InputAdornment from "@mui/material/InputAdornment";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 export default function InventoryNewPage() {
   return (
@@ -261,6 +266,12 @@ function InventoryNewContent() {
     formState: { errors, isSubmitting },
   } = form;
 
+  // 🔭 Watch source fields across tabs
+  const [origDealPriceWan, origCommissionWan, newDealPriceWan] = useWatch({
+    control,
+    name: ["origDealPriceWan", "origCommissionWan", "newDealPriceWan"],
+  });
+
   // watch brand for series query
   const watchedBrandId = useWatch({ control, name: "brandId" });
 
@@ -285,6 +296,42 @@ function InventoryNewContent() {
     const name = getValues("brandName");
     return id ? brandOpts.find((o) => o.id === id) ?? null : name || null;
   }, [brandOpts, getValues]);
+
+  /** ① 進價 = 成交價 + 佣金  */
+  React.useEffect(() => {
+    const deal = toNum(origDealPriceWan);
+    const comm = toNum(origCommissionWan);
+
+    if (Number.isNaN(deal) && Number.isNaN(comm)) return;
+
+    const sum = round2(
+      (Number.isNaN(deal) ? 0 : deal) + (Number.isNaN(comm) ? 0 : comm)
+    );
+    const nextStr = String(sum);
+
+    const prevStr = String(getValues("buyPriceWan") ?? "");
+    if (!strEq(prevStr, nextStr)) {
+      setValue("buyPriceWan", nextStr, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [origDealPriceWan, origCommissionWan, getValues, setValue]);
+
+  /** ② 售價 = 成交價  */
+  React.useEffect(() => {
+    const v = toNum(newDealPriceWan);
+    if (Number.isNaN(v)) return;
+
+    const nextStr = String(round2(v));
+    const prevStr = String(getValues("sellPriceWan") ?? "");
+    if (!strEq(prevStr, nextStr)) {
+      setValue("sellPriceWan", nextStr, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [newDealPriceWan, getValues, setValue]);
 
   /* --------- prefill if carId --------- */
   React.useEffect(() => {
@@ -1019,15 +1066,23 @@ function InventoryNewContent() {
               <RHFDollarTextField
                 control={control}
                 name="buyPriceWan"
-                label="進價"
+                label="進價（原車主成交價＋佣金）"
                 fullWidth
+                InputProps={{
+                  readOnly: true, // 🔒 不能編輯，但保留在 RHF 狀態中
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockOutlinedIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
               <RHFDollarTextField
                 control={control}
                 name="sellPriceWan"
-                label="售價"
+                label="售價（新車主成交價）"
                 fullWidth
               />
             </Grid>

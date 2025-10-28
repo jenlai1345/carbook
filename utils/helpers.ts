@@ -113,6 +113,16 @@ export function daysInMonth(y: number, m: number) {
   return new Date(y, m, 0).getDate();
 }
 
+export const toNum = (v: unknown) => {
+  if (v === "" || v === null || v === undefined) return NaN;
+  const n = Number(String(v).replace(/,/g, "").trim());
+  return Number.isFinite(n) ? n : NaN;
+};
+
+export const round2 = (n: number) => Math.round(n * 100) / 100;
+export const strEq = (a: unknown, b: unknown) =>
+  String(a ?? "") === String(b ?? "");
+
 /** Safely convert unknown date-like values to `YYYY-MM-DD` or "" */
 export function toDateInput(value: any): string {
   if (!value) return "";
