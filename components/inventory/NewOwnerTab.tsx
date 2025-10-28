@@ -18,6 +18,7 @@ import RHFTextField from "../RHFTextField";
 import { useFormContext, useWatch } from "react-hook-form";
 import RHFDollarTextField from "../RHFDollarTextField";
 import RHFDatePicker from "../RHFDatePicker";
+import RHFRocDateField from "../RHFRocDateField";
 
 export type NewOwnerForm = {
   newOwnerName: string;
@@ -182,17 +183,21 @@ export default function NewOwnerTab({
         </Grid>
 
         {/* --------------------- LINE 2 --------------------- */}
-        {/* 身分字號 / 生日 */}
+        {/* 身分證字號 / 生日 */}
         <Grid size={{ xs: 12, md: 6 }}>
           <RHFTextField
             control={control}
             name="newOwnerIdNo"
-            label="身分字號"
+            label="身分證字號"
             fullWidth
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <RHFDatePicker control={control} name="newOwnerBirth" label="生日" />
+          <RHFRocDateField
+            control={control}
+            name="newOwnerBirth" // stores "YYYY-MM-DD" in the form
+            label="生日（民國）"
+          />
         </Grid>
 
         {/* --------------------- LINE 3 --------------------- */}

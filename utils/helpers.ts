@@ -103,6 +103,16 @@ export function matchesKeyword(car: Car, kw: string) {
   return false;
 }
 
+// ---------- helpers----------
+export function pad2(n: number) {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+export function daysInMonth(y: number, m: number) {
+  // m: 1..12
+  return new Date(y, m, 0).getDate();
+}
+
 /** Safely convert unknown date-like values to `YYYY-MM-DD` or "" */
 export function toDateInput(value: any): string {
   if (!value) return "";
@@ -187,7 +197,6 @@ export async function fetchCars(): Promise<Car[]> {
 export function a11yProps(i: number) {
   return { id: `inv-tab-${i}`, "aria-controls": `inv-tabpanel-${i}` };
 }
-
 
 /** Keep existing API: coerce unknown into a date string (YYYY-MM-DD) or "" */
 export const toDateStr = (x: unknown): string =>

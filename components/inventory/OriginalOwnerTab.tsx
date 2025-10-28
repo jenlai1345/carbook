@@ -17,6 +17,7 @@ import { applyZipPrefix, loadSettingsType } from "@/utils/helpers";
 import RHFTextField from "../RHFTextField";
 import RHFDollarTextField from "../RHFDollarTextField";
 import RHFDatePicker from "../RHFDatePicker";
+import RHFRocDateField from "../RHFRocDateField";
 
 export type OriginalOwnerForm = {
   origOwnerName: string;
@@ -134,7 +135,7 @@ export default function OriginalOwnerTab({
       </Typography>
 
       <Grid container spacing={2}>
-        {/* 第一列：原車主名 / 身分字號 / 生日 */}
+        {/* 第一列：原車主名 / 身分證字號 / 生日 */}
         <Grid size={{ xs: 12, md: 4 }}>
           <RHFTextField
             control={control}
@@ -147,12 +148,16 @@ export default function OriginalOwnerTab({
           <RHFTextField
             control={control}
             name="origOwnerIdNo"
-            label="身分字號"
+            label="身分證字號"
             fullWidth
           />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
-          <RHFDatePicker control={control} name="origOwnerBirth" label="生日" />
+          <RHFRocDateField
+            control={control}
+            name="origOwnerBirth" // stores "YYYY-MM-DD" in the form
+            label="生日（民國）"
+          />
         </Grid>
 
         {/* 第二列：合約日期 / 成交價 / 佣金 / 原車主電話 */}
