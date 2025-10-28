@@ -1084,6 +1084,14 @@ function InventoryNewContent() {
                 name="sellPriceWan"
                 label="售價（新車主成交價）"
                 fullWidth
+                InputProps={{
+                  readOnly: true, // 🔒 不能編輯，但保留在 RHF 狀態中
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockOutlinedIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
           </Grid>
