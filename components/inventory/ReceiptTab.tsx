@@ -17,13 +17,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  Control,
-  FieldErrors,
-  Controller,
-  useFieldArray,
-  useWatch,
-} from "react-hook-form";
+import { Control, FieldErrors, useFieldArray, useWatch } from "react-hook-form";
 import { useCarSnackbar } from "../CarSnackbarProvider";
 import RHFTextField from "@/components/RHFTextField";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -54,7 +48,7 @@ export default function ReceiptTab({
 
   const rows = (useWatch({ control, name: FIELD }) || []) as ReceiptItem[];
   const [checked, setChecked] = React.useState<Record<number, boolean>>({});
-  const { confirm, setBusy } = useConfirm();
+  const { confirm } = useConfirm();
   const { showMessage } = useCarSnackbar();
 
   // 自動帶入：現/票 = 票 時自動設定票據日期
@@ -205,7 +199,7 @@ export default function ReceiptTab({
                     onClick={async () => {
                       const ok = await confirm({
                         title: "確認刪除此筆收款？",
-                        description: "刪除後記得儲存才會生效",
+                        description: "刪除後無法復原",
                         confirmText: "刪除",
                         cancelText: "保留",
                         confirmColor: "error",
@@ -252,7 +246,7 @@ export default function ReceiptTab({
             onClick={async () => {
               const ok = await confirm({
                 title: "確認刪除勾選？",
-                description: "刪除後記得儲存才會生效",
+                description: "刪除後無法復原",
                 confirmText: "刪除",
                 cancelText: "保留",
                 confirmColor: "error",

@@ -17,13 +17,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  Control,
-  FieldErrors,
-  Controller,
-  useFieldArray,
-  useWatch,
-} from "react-hook-form";
+import { Control, FieldErrors, useFieldArray, useWatch } from "react-hook-form";
 import { useCarSnackbar } from "../CarSnackbarProvider";
 import RHFTextField from "@/components/RHFTextField";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -54,7 +48,7 @@ export default function PaymentTab({
 
   const rows = (useWatch({ control, name: FIELD }) || []) as PaymentItem[];
   const [checked, setChecked] = React.useState<Record<number, boolean>>({});
-  const { confirm, setBusy } = useConfirm();
+  const { confirm } = useConfirm();
   const { showMessage } = useCarSnackbar();
 
   // 自動帶入：現/票 = 票 時，利息起算日帶入 日期
@@ -153,7 +147,7 @@ export default function PaymentTab({
                   />
                 </TableCell>
 
-                {/* 金額（與其他頁一致） */}
+                {/* 金額 */}
                 <TableCell align="right">
                   <RHFDollarTextField
                     control={control}
@@ -198,6 +192,7 @@ export default function PaymentTab({
                   />
                 </TableCell>
 
+                {/* 單筆刪除 */}
                 <TableCell align="center">
                   <IconButton
                     size="small"
@@ -205,12 +200,14 @@ export default function PaymentTab({
                     onClick={async () => {
                       const ok = await confirm({
                         title: "確認刪除此筆付款？",
-                        description: "刪除後記得儲存才會生效",
+                        description: "刪除後無法復原",
                         confirmText: "刪除",
                         cancelText: "保留",
                         confirmColor: "error",
                       });
-                      if (ok) remove(index);
+                      if (ok) {
+                        remove(index);
+                      }
                     }}
                   >
                     <DeleteIcon fontSize="small" />
@@ -252,7 +249,7 @@ export default function PaymentTab({
             onClick={async () => {
               const ok = await confirm({
                 title: "確認刪除勾選？",
-                description: "刪除後記得儲存才會生效",
+                description: "刪除後無法復原",
                 confirmText: "刪除",
                 cancelText: "保留",
                 confirmColor: "error",

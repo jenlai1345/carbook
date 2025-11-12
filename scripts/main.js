@@ -74,7 +74,7 @@ global.DEFAULTS = {
   ],
   settings: {
     importStyle: [],
-    purchaser: ["王小明"],
+    purchaser: [],
     purchaseMethod: [
       "一般",
       "介紹",
@@ -137,8 +137,8 @@ global.DEFAULTS = {
       "日盛銀行",
       "其他",
     ],
-    salesperson: ["王小明"],
-    registeredToName: ["王小明"],
+    salesperson: [],
+    registeredToName: [],
     salesMethod: [
       "8891刊登",
       "ABC網路",

@@ -51,6 +51,7 @@ import {
   FEE_TAB_INDEX,
   INSURANCE_TAB_INDEX,
   SERIES_CATEGORIES,
+  NO_SAVE_TABS,
 } from "@/utils/constants";
 import {
   CarSnackbarProvider,
@@ -272,8 +273,11 @@ function InventoryNewContent() {
     name: ["origDealPriceWan", "origCommissionWan", "newDealPriceWan"],
   });
 
-  // watch brand for series query
-  const watchedBrandId = useWatch({ control, name: "brandId" });
+  // 只給「切換分頁自動儲存用」，不跑 zod 驗證（直接用 getValues）
+  const autoSaveForTab = async (tabIndex: number) => {
+    const v = getValues();
+    await saveByTab(tabIndex, v as FormValues);
+  };
 
   interface Option {
     id: string;
@@ -598,8 +602,8 @@ function InventoryNewContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carId]);
 
-  /* --------- submit (create or update) --------- */
-  const onSubmit = async (v: FormValues) => {
+  /* --------- save by tab (create or update) --------- */
+  const saveByTab = async (currentTab: number, v: FormValues) => {
     try {
       // Ensure Brand exist (unchanged)
       let brandId = v.brandId;
@@ -664,11 +668,11 @@ function InventoryNewContent() {
       // default status on create
       if (!carId) car.set("status", "active");
 
-      if (tab === BASIC_TAB_INDEX) {
+      if (currentTab === BASIC_TAB_INDEX) {
         await car.save();
         showMessage(carId ? "✅ 基本資料已更新" : "✅ 車輛已建立");
         return;
-      } else if (tab === ORIGINAL_OWNER_TAB_INDEX) {
+      } else if (currentTab === ORIGINAL_OWNER_TAB_INDEX) {
         const Owner = Parse.Object.extend("Owner");
         const owner = origOwnerId
           ? Owner.createWithoutData(origOwnerId)
@@ -714,7 +718,7 @@ function InventoryNewContent() {
           origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立"
         );
         return;
-      } else if (tab === DOCUMENT_TAB_INDEX) {
+      } else if (currentTab === DOCUMENT_TAB_INDEX) {
         const d = v.document || {};
         const n = (x: any) => (x === "" || x == null ? null : x);
 
@@ -740,7 +744,7 @@ function InventoryNewContent() {
         await car.save();
         showMessage("✅ 已更新證件資料");
         return;
-      } else if (tab === INBOUND_TAB_INDEX) {
+      } else if (currentTab === INBOUND_TAB_INDEX) {
         const d = v.inbound || {};
         const n = (x: any) => (x === "" || x == null ? null : x);
 
@@ -770,7 +774,7 @@ function InventoryNewContent() {
         await car.save();
         showMessage("✅ 已更新入車資料");
         return;
-      } else if (tab === INSURANCE_TAB_INDEX) {
+      } else if (currentTab === INSURANCE_TAB_INDEX) {
         const d = v.insurance || {};
         const n = (x: any) => (x === "" || x == null ? null : x);
 
@@ -793,7 +797,7 @@ function InventoryNewContent() {
         await car.save();
         showMessage("✅ 已更新保險/貸款資料");
         return;
-      } else if (tab === NEW_OWNER_TAB_INDEX) {
+      } else if (currentTab === NEW_OWNER_TAB_INDEX) {
         const Owner = Parse.Object.extend("Owner");
         const buyer = newOwnerId
           ? Owner.createWithoutData(newOwnerId)
@@ -846,7 +850,7 @@ function InventoryNewContent() {
         if (!newOwnerId) setNewOwnerId(buyer.id);
         showMessage(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
         return;
-      } else if (tab === PAYMENT_TAB_INDEX) {
+      } else if (currentTab === PAYMENT_TAB_INDEX) {
         const payments = (v.payments || []).map((p) => ({
           date: p.date || null, // keep as string
           amount: p.amount === "" || p.amount == null ? 0 : Number(p.amount),
@@ -858,7 +862,7 @@ function InventoryNewContent() {
         await car.save();
         showMessage("✅ 已更新付款資料");
         return;
-      } else if (tab === RECEIPT_TAB_INDEX) {
+      } else if (currentTab === RECEIPT_TAB_INDEX) {
         const receipts = (v.receipts || []).map((r) => ({
           date: r.date || null,
           amount: r.amount === "" || r.amount == null ? 0 : Number(r.amount),
@@ -870,7 +874,7 @@ function InventoryNewContent() {
         await car.save();
         showMessage("✅ 已更新收款資料");
         return;
-      } else if (tab === FEE_TAB_INDEX) {
+      } else if (currentTab === FEE_TAB_INDEX) {
         const fees = (v.fees || []).map((f) => ({
           date: f.date || null,
           item: f.item || null,
@@ -891,6 +895,26 @@ function InventoryNewContent() {
       console.error("Save car failed:", err);
       showMessage(`❌ 儲存失敗：${err?.message ?? err}`);
     }
+  };
+
+  /* --------- submit handler for <form> --------- */
+  const onSubmit = async (v: FormValues) => {
+    await saveByTab(tab, v);
+  };
+
+  /* --------- for payment, receipt, fee tabs --------- */
+  const handleTabChange = async (
+    _event: React.SyntheticEvent,
+    nextTab: number
+  ) => {
+    const prevTab = tab;
+
+    // 如果是從「付款 / 收款 / 費用」離開，就幫前一個 tab 存一次
+    if (NO_SAVE_TABS.includes(prevTab)) {
+      autoSaveForTab(prevTab); // fire-and-forget; 不 block UI
+    }
+
+    setTab(nextTab);
   };
 
   /* -------------------- render -------------------- */
@@ -1114,7 +1138,7 @@ function InventoryNewContent() {
             >
               <Tabs
                 value={tab}
-                onChange={(_, v) => setTab(v)}
+                onChange={handleTabChange}
                 variant="scrollable"
                 scrollButtons="auto"
               >
@@ -1171,26 +1195,28 @@ function InventoryNewContent() {
               </TabPanel>
 
               {/* Sticky footer Save */}
-              <Box
-                sx={{
-                  position: "sticky",
-                  bottom: 0,
-                  p: 2,
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  bgcolor: "background.paper",
-                  borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-                  zIndex: 1,
-                }}
-              >
-                <SaveButton
-                  type="submit"
-                  variant="contained"
-                  disabled={isSubmitting || loading}
+              {!NO_SAVE_TABS.includes(tab) && (
+                <Box
+                  sx={{
+                    position: "sticky",
+                    bottom: 0,
+                    p: 2,
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    bgcolor: "background.paper",
+                    borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+                    zIndex: 1,
+                  }}
                 >
-                  儲存
-                </SaveButton>
-              </Box>
+                  <SaveButton
+                    type="submit"
+                    variant="contained"
+                    disabled={isSubmitting || loading}
+                  >
+                    儲存
+                  </SaveButton>
+                </Box>
+              )}
             </Box>
           </FormProvider>
         </Paper>

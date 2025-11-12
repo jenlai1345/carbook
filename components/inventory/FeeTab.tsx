@@ -100,7 +100,7 @@ export default function FeeTab({
   const [vendorOptions, setVendorOptions] = React.useState<string[]>([]);
   const [loadingVendors, setLoadingVendors] = React.useState<boolean>(false);
 
-  const { confirm, setBusy } = useConfirm();
+  const { confirm } = useConfirm();
 
   React.useEffect(() => {
     let mounted = true;
@@ -378,7 +378,7 @@ export default function FeeTab({
                     onClick={async () => {
                       const ok = await confirm({
                         title: "確認刪除此筆費用？",
-                        description: "刪除後記得儲存才會生效。",
+                        description: "刪除後無法復原",
                         confirmText: "刪除",
                         cancelText: "保留",
                         confirmColor: "error",
@@ -425,7 +425,7 @@ export default function FeeTab({
             onClick={async () => {
               const ok = await confirm({
                 title: "確認刪除勾選？",
-                description: "刪除後記得儲存才會生效",
+                description: "刪除後無法復原",
                 confirmText: "刪除",
                 cancelText: "保留",
                 confirmColor: "error",

@@ -8,6 +8,12 @@ export const PAYMENT_TAB_INDEX = 6;
 export const RECEIPT_TAB_INDEX = 7;
 export const FEE_TAB_INDEX = 8;
 
+export const NO_SAVE_TABS = [
+  PAYMENT_TAB_INDEX,
+  RECEIPT_TAB_INDEX,
+  FEE_TAB_INDEX,
+];
+
 // --- Fixed options ---
 export const SERIES_CATEGORIES = [
   "國產",

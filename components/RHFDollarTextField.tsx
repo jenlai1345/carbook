@@ -27,16 +27,33 @@ export default function RHFDollarTextField({
           value={field.value ?? ""}
           onChange={(e) => {
             let v = e.target.value ?? "";
-            // keep digits + single dot
-            v = v.replace(/[^\d.]/g, "");
+
+            // allow empty + lone "-" while typing
+            if (v === "" || v === "-") {
+              field.onChange(v);
+              return;
+            }
+
+            const hasLeadingMinus = v.startsWith("-");
+            // strip everything except digits and dots
+            v = v.replace(/[^0-9.]/g, "");
+
+            // keep only a single dot
             const parts = v.split(".");
-            if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
-            // update both input + RHF state
+            if (parts.length > 2) {
+              v = parts[0] + "." + parts.slice(1).join("");
+            }
+
+            // re-attach leading "-" if it was there originally
+            if (hasLeadingMinus && v !== "") {
+              v = "-" + v;
+            }
+
             field.onChange(v);
           }}
           inputProps={{
             inputMode: "decimal",
-            pattern: "[0-9]*[.]?[0-9]*",
+            pattern: "-?[0-9]*[.]?[0-9]*",
             ...rest.inputProps,
           }}
           InputProps={{
