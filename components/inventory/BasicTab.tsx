@@ -12,6 +12,7 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import RHFImageUpload from "@/components/RHFImageUpload";
 import RHFDatePicker from "../RHFDatePicker";
 import RHFYearMonthPicker from "../RHFYearMonthPicker";
+import RHFEngNumTextField from "../RHFEngNumTextField";
 
 type Props = {
   control: Control<FormValues, any, any>; // note the third generic
@@ -83,19 +84,10 @@ export default function BasicTab({ control }: Props) {
       <Grid container spacing={2}>
         {/* 出廠（年/月） */}
         <Grid size={{ xs: 6, md: 4 }}>
-          <Controller
-            name={"factoryYM" as any}
+          <RHFYearMonthPicker
             control={control}
-            render={({ field }) => {
-              const ym = field.value ? dayjs(`${field.value}-01`) : null;
-              return (
-                <RHFYearMonthPicker
-                  control={control}
-                  name="factoryYM"
-                  label="出廠（年/月）"
-                />
-              );
-            }}
+            name="factoryYM"
+            label="出廠（年/月）"
           />
         </Grid>
 
@@ -109,50 +101,36 @@ export default function BasicTab({ control }: Props) {
         </Grid>
 
         <Grid size={{ xs: 6, md: 4 }}>
-          <Controller
-            name={"model" as any}
+          <RHFEngNumTextField
+            name="model"
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="Model" fullWidth />
-            )}
+            label="Model"
+            fullWidth
           />
         </Grid>
 
         <Grid size={{ xs: 6, md: 4 }}>
-          <Controller
-            name={"displacementCc" as any}
+          <RHFEngNumTextField
+            name="displacementCc"
             control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="排氣量"
-                inputProps={{ inputMode: "numeric" }}
-                fullWidth
-              />
-            )}
+            label="排氣量"
+            fullWidth
           />
         </Grid>
 
         <Grid size={{ xs: 6, md: 4 }}>
-          <Controller
-            name={"transmission" as any}
+          <RHFEngNumTextField
+            name="transmission"
             control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                SelectProps={{ native: true }}
-                label="排檔（A/M）"
-                fullWidth
-              >
-                <option value=""></option>
-                <option value="A">A</option>
-                <option value="M">M</option>
-              </TextField>
-            )}
-          />
+            label="排檔（A/M）"
+            SelectProps={{ native: true }}
+            fullWidth
+          >
+            <option value=""></option>
+            <option value="A">A</option>
+            <option value="M">M</option>
+          </RHFEngNumTextField>
         </Grid>
-
         <Grid size={{ xs: 6, md: 4 }}>
           <Controller
             name={"color" as any}
@@ -164,22 +142,20 @@ export default function BasicTab({ control }: Props) {
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
-          <Controller
-            name={"engineNo" as any}
+          <RHFEngNumTextField
+            name="engineNo"
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="引擎號碼" fullWidth />
-            )}
+            label="引擎號碼"
+            fullWidth
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
-          <Controller
-            name={"vin" as any}
+          <RHFEngNumTextField
+            name="vin"
             control={control}
-            render={({ field }) => (
-              <TextField {...field} label="車身號碼" fullWidth />
-            )}
+            label="車身號碼"
+            fullWidth
           />
         </Grid>
 

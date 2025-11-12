@@ -1,60 +1,167 @@
+// components/RHFYearMonthField.tsx
 import * as React from "react";
 import { Controller } from "react-hook-form";
-import { DatePicker } from "@mui/x-date-pickers";
-import dayjs, { Dayjs } from "dayjs";
-import { DATE_TF_PROPS } from "./mui";
+import { TextField, TextFieldProps } from "@mui/material";
+import { getAsciiFromEvent } from "./RHFEngNumTextField";
 
-/**
- * Year/Month picker (masked like YYYY/MM), stores "YYYY-MM".
- *
- * Usage:
- *   <RHFYearMonthPicker name="factoryYM" label="出廠（年/月）" />
- */
-export default function RHFYearMonthPicker({
-  control,
-  name,
-  label,
-}: {
+type Props = TextFieldProps & {
   control: any;
   name: string;
   label: string;
-}) {
+};
+
+function toDisplay(store: string | null | undefined): string {
+  if (!store) return "";
+  const m = store.match(/^(\d{4})-(\d{2})$/);
+  return m ? `${m[1]}/${m[2]}` : "";
+}
+
+function toStore(display: string): string | "" {
+  const m = display.match(/^(\d{4})\/(0[1-9]|1[0-2])$/);
+  return m ? `${m[1]}-${m[2]}` : "";
+}
+
+function normalizeDisplayDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 6);
+  if (digits.length <= 4) return digits; // "2025"
+  return `${digits.slice(0, 4)}/${digits.slice(4)}`; // "2025/05"
+}
+
+
+export default function RHFYearMonthField({
+  control,
+  name,
+  label,
+  ...rest
+}: Props) {
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+
   return (
     <Controller
       name={name}
       control={control}
-      render={({ field }) => {
-        // field.value is expected to be "" or "YYYY-MM"
-        const value: Dayjs | null = field.value
-          ? dayjs(`${field.value}-01`)
-          : null;
+      render={({ field, fieldState }) => {
+        const [display, setDisplay] = React.useState<string>(
+          toDisplay(field.value)
+        );
 
-        // critical: provide a stable referenceDate so typing month first
-        // (e.g., "0" -> "08") doesn't reset the year to 2001/2021.
-        const referenceDate = value ?? dayjs().startOf("month"); // any stable month is fine
+        React.useEffect(() => {
+          setDisplay(toDisplay(field.value));
+        }, [field.value]);
+
+        const commitIfValid = (s: string) => {
+          const store = toStore(s);
+          field.onChange(store);
+          setDisplay(toDisplay(store));
+        };
+
+        const insertAtCursor = (ch: string) => {
+          const el = inputRef.current;
+          if (!el) return;
+          const start = el.selectionStart ?? display.length;
+          const end = el.selectionEnd ?? display.length;
+          const nextRaw = display.slice(0, start) + ch + display.slice(end);
+          const normalized = normalizeDisplayDigits(nextRaw);
+          setDisplay(normalized);
+          requestAnimationFrame(() => {
+            const pos = Math.min(
+              start +
+                ch.length +
+                (normalized.includes("/") && start + ch.length === 5 ? 1 : 0),
+              normalized.length
+            );
+            inputRef.current?.setSelectionRange(pos, pos);
+          });
+        };
+
+        const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (
+          e
+        ) => {
+          const nav = new Set([
+            "Backspace",
+            "Delete",
+            "ArrowLeft",
+            "ArrowRight",
+            "ArrowUp",
+            "ArrowDown",
+            "Home",
+            "End",
+            "Tab",
+          ]);
+          if (nav.has(e.key) || e.ctrlKey || e.metaKey || e.altKey) return;
+
+          const isIME =
+            (e as any).isComposing ||
+            e.key === "Process" ||
+            (e as any).keyCode === 229;
+
+          if (isIME) {
+            const ascii = getAsciiFromEvent(e);
+            if (ascii) {
+              e.preventDefault();
+              if (/[0-9]/.test(ascii)) {
+                insertAtCursor(ascii);
+              } else if (ascii === "/") {
+                if (
+                  !display.includes("/") &&
+                  display.replace(/\D/g, "").length >= 4
+                ) {
+                  insertAtCursor("/");
+                }
+              }
+            }
+            return;
+          }
+
+          // Normal keyboard path
+          if (e.key.length === 1) {
+            if (/[0-9]/.test(e.key)) return;
+            if (e.key === "/") {
+              const hasSlash = display.includes("/");
+              const digitCount = display.replace(/\D/g, "").length;
+              if (!hasSlash && digitCount >= 4) return;
+            }
+            e.preventDefault();
+          }
+        };
+
+        const handleBeforeInput = (e: any) => {
+          const data: string | undefined = e?.data;
+          if (data && /[^\x00-\x7F]/.test(data)) e.preventDefault?.();
+        };
+
+        const handleChange: React.ChangeEventHandler<HTMLInputElement> = (
+          e
+        ) => {
+          setDisplay(normalizeDisplayDigits(e.target.value ?? ""));
+        };
+
+        const handleBlur: React.FocusEventHandler<HTMLInputElement> = () => {
+          commitIfValid(display);
+        };
 
         return (
-          <DatePicker
+          <TextField
+            {...rest}
             label={label}
-            views={["year", "month"]}
-            openTo="year"
-            value={value}
-            referenceDate={referenceDate}
-            // Display "YYYY/MM" while the stored value remains "YYYY-MM"
-            format="YYYY/MM"
-            onChange={(v) => {
-              if (!v || !v.isValid()) {
-                field.onChange("");
-                return;
-              }
-              field.onChange(v.format("YYYY-MM"));
+            value={display}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            inputRef={inputRef}
+            onKeyDown={handleKeyDown}
+            // @ts-ignore beforeinput exists at runtime
+            onBeforeInput={handleBeforeInput}
+            placeholder="YYYY/MM"
+            inputProps={{
+              inputMode: "numeric",
+              pattern: "[0-9/]*",
+              lang: "en",
+              autoCapitalize: "off",
+              autoCorrect: "off",
+              ...(rest.inputProps ?? {}),
             }}
-            slotProps={{
-              textField: {
-                ...DATE_TF_PROPS,
-                placeholder: "YYYY/MM",
-              },
-            }}
+            error={!!fieldState.error || !!rest.error}
+            helperText={fieldState.error?.message ?? rest.helperText}
           />
         );
       }}

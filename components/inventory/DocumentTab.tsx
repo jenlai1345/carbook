@@ -19,6 +19,7 @@ import type { FormValues } from "@/schemas/carSchemas";
 import RHFImageUpload from "@/components/RHFImageUpload";
 import RHFTextField from "@/components/RHFTextField";
 import RHFDatePicker from "../RHFDatePicker";
+import RHFEngNumTextField from "../RHFEngNumTextField";
 
 /** ---------- Document Tab（含圖片上傳） ---------- */
 type Props = { control: Control<FormValues, any, any> };
@@ -29,7 +30,7 @@ export default function DocumentTab({ control }: Props) {
       <Grid container spacing={2}>
         {/* 音響密碼 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <RHFTextField
+          <RHFEngNumTextField
             control={control}
             name="document.audioCode"
             label="音響密碼"
@@ -39,7 +40,7 @@ export default function DocumentTab({ control }: Props) {
 
         {/* 預備鑰 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <RHFTextField
+          <RHFEngNumTextField
             control={control}
             name="document.spareKey"
             label="預備鑰"

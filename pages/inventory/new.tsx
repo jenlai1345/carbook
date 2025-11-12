@@ -51,7 +51,7 @@ import {
   FEE_TAB_INDEX,
   INSURANCE_TAB_INDEX,
   SERIES_CATEGORIES,
-  NO_SAVE_TABS,
+  AUTO_SAVE_TABS,
 } from "@/utils/constants";
 import {
   CarSnackbarProvider,
@@ -67,6 +67,7 @@ import RHFDollarTextField from "@/components/RHFDollarTextField";
 import RHFDatePicker from "@/components/RHFDatePicker";
 import InputAdornment from "@mui/material/InputAdornment";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import RHFEngNumTextField from "@/components/RHFEngNumTextField";
 
 export default function InventoryNewPage() {
   return (
@@ -123,6 +124,7 @@ const normalizeImages = (raw: any): UploadedImage[] => {
 function InventoryNewContent() {
   const { showMessage } = useCarSnackbar();
   const router = useRouter();
+  const submittingRef = React.useRef(false);
   const { carId } = router.query as { carId?: string };
   const [tab, setTab] = React.useState(0);
   const [origOwnerId, setOrigOwnerId] = React.useState<string | null>(null);
@@ -602,8 +604,25 @@ function InventoryNewContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carId]);
 
+  // Optional helper: after first create, lock onto the new id
+  const updateUrlAfterCreate = (newId: string) => {
+    // if you maintain a carId state, update it too (optional-safe)
+    try {
+      // @ts-ignore - only if you actually have setCarId
+      if (typeof setCarId === "function") setCarId(newId);
+    } catch {}
+    router.replace(
+      { pathname: "/inventory/new", query: { carId: newId } },
+      undefined,
+      { shallow: true }
+    );
+  };
+
   /* --------- save by tab (create or update) --------- */
   const saveByTab = async (currentTab: number, v: FormValues) => {
+    if (submittingRef.current) return; // prevent rapid double submit
+    submittingRef.current = true;
+
     try {
       // Ensure Brand exist (unchanged)
       let brandId = v.brandId;
@@ -658,7 +677,6 @@ function InventoryNewContent() {
       car.set("returnDate", v.returnDate || null);
 
       car.set("disposition", v.disposition || null);
-
       car.set("images", Array.isArray(v.images) ? v.images : []);
 
       const u = Parse.User.current();
@@ -666,13 +684,25 @@ function InventoryNewContent() {
       if (u) car.set("dealer", u.get("dealer") || null);
 
       // default status on create
-      if (!carId) car.set("status", "active");
+      const isCreate = !carId;
+      if (isCreate) car.set("status", "active");
 
       if (currentTab === BASIC_TAB_INDEX) {
-        await car.save();
+        const saved = await car.save();
+
+        // ✅ FIRST CREATE → lock URL to ?carId=...
+        if (isCreate) updateUrlAfterCreate(saved.id);
+
         showMessage(carId ? "✅ 基本資料已更新" : "✅ 車輛已建立");
         return;
       } else if (currentTab === ORIGINAL_OWNER_TAB_INDEX) {
+        // If creating for the first time, save car first to get an id
+        let savedCar = car;
+        if (isCreate) {
+          savedCar = await car.save();
+          updateUrlAfterCreate(savedCar.id);
+        }
+
         const Owner = Parse.Object.extend("Owner");
         const owner = origOwnerId
           ? Owner.createWithoutData(origOwnerId)
@@ -710,8 +740,8 @@ function InventoryNewContent() {
         if (u) owner.set("dealer", u.get("dealer") || null);
 
         await owner.save();
-        car.set("originalOwner", owner);
-        await car.save();
+        savedCar.set("originalOwner", owner);
+        await savedCar.save();
 
         if (!origOwnerId) setOrigOwnerId(owner.id);
         showMessage(
@@ -719,6 +749,13 @@ function InventoryNewContent() {
         );
         return;
       } else if (currentTab === DOCUMENT_TAB_INDEX) {
+        // Ensure we have an id first
+        let savedCar = car;
+        if (isCreate) {
+          savedCar = await car.save();
+          updateUrlAfterCreate(savedCar.id);
+        }
+
         const d = v.document || {};
         const n = (x: any) => (x === "" || x == null ? null : x);
 
@@ -740,11 +777,17 @@ function InventoryNewContent() {
           images: Array.isArray(d.images) ? (d.images as UploadedImage[]) : [],
         };
 
-        car.set("document", docOut);
-        await car.save();
+        savedCar.set("document", docOut);
+        await savedCar.save();
         showMessage("✅ 已更新證件資料");
         return;
       } else if (currentTab === INBOUND_TAB_INDEX) {
+        let savedCar = car;
+        if (isCreate) {
+          savedCar = await car.save();
+          updateUrlAfterCreate(savedCar.id);
+        }
+
         const d = v.inbound || {};
         const n = (x: any) => (x === "" || x == null ? null : x);
 
@@ -770,11 +813,17 @@ function InventoryNewContent() {
             : null,
         };
 
-        car.set("inbound", inboundOut);
-        await car.save();
+        savedCar.set("inbound", inboundOut);
+        await savedCar.save();
         showMessage("✅ 已更新入車資料");
         return;
       } else if (currentTab === INSURANCE_TAB_INDEX) {
+        let savedCar = car;
+        if (isCreate) {
+          savedCar = await car.save();
+          updateUrlAfterCreate(savedCar.id);
+        }
+
         const d = v.insurance || {};
         const n = (x: any) => (x === "" || x == null ? null : x);
 
@@ -793,11 +842,17 @@ function InventoryNewContent() {
           collection: n(d.collection),
         };
 
-        car.set("insurance", insuranceOut);
-        await car.save();
+        savedCar.set("insurance", insuranceOut);
+        await savedCar.save();
         showMessage("✅ 已更新保險/貸款資料");
         return;
       } else if (currentTab === NEW_OWNER_TAB_INDEX) {
+        let savedCar = car;
+        if (isCreate) {
+          savedCar = await car.save();
+          updateUrlAfterCreate(savedCar.id);
+        }
+
         const Owner = Parse.Object.extend("Owner");
         const buyer = newOwnerId
           ? Owner.createWithoutData(newOwnerId)
@@ -839,18 +894,24 @@ function InventoryNewContent() {
         buyer.set("salesMode", v.salesMode || null);
         buyer.set("preferredShop", v.preferredShop || null);
         buyer.set("note", v.newOwnerNote || null);
-        buyer.set("isPeer", v.isPeer === "是"); // 「同行」布林值
+        buyer.set("isPeer", v.isPeer === "是");
         if (u) buyer.set("dealer", u.get("dealer") || null);
 
         await buyer.save();
-        car.set("newOwner", buyer);
-        car.set("newOwnerEmail", v.newOwnerEmail || "");
-        await car.save();
+        savedCar.set("newOwner", buyer);
+        savedCar.set("newOwnerEmail", v.newOwnerEmail || "");
+        await savedCar.save();
 
         if (!newOwnerId) setNewOwnerId(buyer.id);
         showMessage(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
         return;
       } else if (currentTab === PAYMENT_TAB_INDEX) {
+        let savedCar = car;
+        if (isCreate) {
+          savedCar = await car.save();
+          updateUrlAfterCreate(savedCar.id);
+        }
+
         const payments = (v.payments || []).map((p) => ({
           date: p.date || null, // keep as string
           amount: p.amount === "" || p.amount == null ? 0 : Number(p.amount),
@@ -858,11 +919,17 @@ function InventoryNewContent() {
           interestStartDate: p.interestStartDate || null,
           note: p.note || null,
         }));
-        car.set("payments", payments);
-        await car.save();
+        savedCar.set("payments", payments);
+        await savedCar.save();
         showMessage("✅ 已更新付款資料");
         return;
       } else if (currentTab === RECEIPT_TAB_INDEX) {
+        let savedCar = car;
+        if (isCreate) {
+          savedCar = await car.save();
+          updateUrlAfterCreate(savedCar.id);
+        }
+
         const receipts = (v.receipts || []).map((r) => ({
           date: r.date || null,
           amount: r.amount === "" || r.amount == null ? 0 : Number(r.amount),
@@ -870,11 +937,17 @@ function InventoryNewContent() {
           exchangeDate: r.exchangeDate || null,
           note: r.note || null,
         }));
-        car.set("receipts", receipts);
-        await car.save();
+        savedCar.set("receipts", receipts);
+        await savedCar.save();
         showMessage("✅ 已更新收款資料");
         return;
       } else if (currentTab === FEE_TAB_INDEX) {
+        let savedCar = car;
+        if (isCreate) {
+          savedCar = await car.save();
+          updateUrlAfterCreate(savedCar.id);
+        }
+
         const fees = (v.fees || []).map((f) => ({
           date: f.date || null,
           item: f.item || null,
@@ -884,8 +957,8 @@ function InventoryNewContent() {
           note: f.note || null,
           handler: f.handler || null,
         }));
-        car.set("fees", fees);
-        await car.save();
+        savedCar.set("fees", fees);
+        await savedCar.save();
         showMessage("✅ 已更新費用資料");
         return;
       }
@@ -894,12 +967,20 @@ function InventoryNewContent() {
     } catch (err: any) {
       console.error("Save car failed:", err);
       showMessage(`❌ 儲存失敗：${err?.message ?? err}`);
+    } finally {
+      submittingRef.current = false; // release guard
     }
   };
 
   /* --------- submit handler for <form> --------- */
   const onSubmit = async (v: FormValues) => {
-    await saveByTab(tab, v);
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      await saveByTab(tab, v);
+    } finally {
+      submittingRef.current = false;
+    }
   };
 
   /* --------- for payment, receipt, fee tabs --------- */
@@ -910,7 +991,7 @@ function InventoryNewContent() {
     const prevTab = tab;
 
     // 如果是從「付款 / 收款 / 費用」離開，就幫前一個 tab 存一次
-    if (NO_SAVE_TABS.includes(prevTab)) {
+    if (AUTO_SAVE_TABS.includes(prevTab)) {
       autoSaveForTab(prevTab); // fire-and-forget; 不 block UI
     }
 
@@ -946,28 +1027,22 @@ function InventoryNewContent() {
         >
           <Grid container spacing={2}>
             <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
+              <RHFEngNumTextField
                 name="plateNo"
                 control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="車號"
-                    required
-                    fullWidth
-                    error={!!errors.plateNo}
-                    helperText={errors.plateNo?.message}
-                  />
-                )}
+                label="車號"
+                required
+                fullWidth
+                error={!!errors.plateNo}
+                helperText={errors.plateNo?.message}
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
+              <RHFEngNumTextField
                 name="prevPlateNo"
                 control={control}
-                render={({ field }) => (
-                  <TextField {...field} label="原車號" fullWidth />
-                )}
+                label="原車號"
+                required
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
@@ -1078,12 +1153,11 @@ function InventoryNewContent() {
             </Grid>
 
             <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
+              <RHFEngNumTextField
                 name="style"
                 control={control}
-                render={({ field }) => (
-                  <TextField {...field} label="型式" fullWidth />
-                )}
+                label="型式"
+                fullWidth
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
@@ -1195,7 +1269,7 @@ function InventoryNewContent() {
               </TabPanel>
 
               {/* Sticky footer Save */}
-              {!NO_SAVE_TABS.includes(tab) && (
+              {!AUTO_SAVE_TABS.includes(tab) && (
                 <Box
                   sx={{
                     position: "sticky",
