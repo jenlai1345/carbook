@@ -127,7 +127,6 @@ export default function RHFEngNumTextField({
             value={value}
             inputRef={inputRef}
             onKeyDown={handleKeyDown}
-            // @ts-ignore: beforeinput exists at runtime
             onBeforeInput={handleBeforeInput}
             onChange={handleChange}
             inputProps={{

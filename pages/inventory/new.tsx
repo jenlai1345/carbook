@@ -606,11 +606,6 @@ function InventoryNewContent() {
 
   // Optional helper: after first create, lock onto the new id
   const updateUrlAfterCreate = (newId: string) => {
-    // if you maintain a carId state, update it too (optional-safe)
-    try {
-      // @ts-ignore - only if you actually have setCarId
-      if (typeof setCarId === "function") setCarId(newId);
-    } catch {}
     router.replace(
       { pathname: "/inventory/new", query: { carId: newId } },
       undefined,
