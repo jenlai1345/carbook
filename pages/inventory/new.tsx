@@ -677,13 +677,20 @@ function InventoryNewContent() {
       const isCreate = !carId;
       if (isCreate) car.set("status", "active");
 
+      // ✅ After successful save, clear dirty flags by resetting to current values
+      const finalize = (msg: string) => {
+        const current = getValues(); // include any setValue side effects (brandId, etc.)
+        reset(current as FormValues);
+        showMessage(msg);
+      };
+
       if (currentTab === BASIC_TAB_INDEX) {
         const saved = await car.save();
 
         // ✅ FIRST CREATE → lock URL to ?carId=...
         if (isCreate) updateUrlAfterCreate(saved.id);
 
-        showMessage(carId ? "✅ 基本資料已更新" : "✅ 車輛已建立");
+        finalize(carId ? "✅ 基本資料已更新" : "✅ 車輛已建立");
         return;
       } else if (currentTab === ORIGINAL_OWNER_TAB_INDEX) {
         // If creating for the first time, save car first to get an id
@@ -734,9 +741,7 @@ function InventoryNewContent() {
         await savedCar.save();
 
         if (!origOwnerId) setOrigOwnerId(owner.id);
-        showMessage(
-          origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立"
-        );
+        finalize(origOwnerId ? "✅ 原車主資料已更新" : "✅ 原車主資料已建立");
         return;
       } else if (currentTab === DOCUMENT_TAB_INDEX) {
         // Ensure we have an id first
@@ -769,7 +774,7 @@ function InventoryNewContent() {
 
         savedCar.set("document", docOut);
         await savedCar.save();
-        showMessage("✅ 已更新證件資料");
+        finalize("✅ 已更新證件資料");
         return;
       } else if (currentTab === INBOUND_TAB_INDEX) {
         let savedCar = car;
@@ -805,7 +810,7 @@ function InventoryNewContent() {
 
         savedCar.set("inbound", inboundOut);
         await savedCar.save();
-        showMessage("✅ 已更新入車資料");
+        finalize("✅ 已更新入車資料");
         return;
       } else if (currentTab === INSURANCE_TAB_INDEX) {
         let savedCar = car;
@@ -834,7 +839,7 @@ function InventoryNewContent() {
 
         savedCar.set("insurance", insuranceOut);
         await savedCar.save();
-        showMessage("✅ 已更新保險/貸款資料");
+        finalize("✅ 已更新保險/貸款資料");
         return;
       } else if (currentTab === NEW_OWNER_TAB_INDEX) {
         let savedCar = car;
@@ -893,7 +898,7 @@ function InventoryNewContent() {
         await savedCar.save();
 
         if (!newOwnerId) setNewOwnerId(buyer.id);
-        showMessage(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
+        finalize(newOwnerId ? "✅ 新車主資料已更新" : "✅ 新車主資料已建立");
         return;
       } else if (currentTab === PAYMENT_TAB_INDEX) {
         let savedCar = car;
@@ -911,7 +916,7 @@ function InventoryNewContent() {
         }));
         savedCar.set("payments", payments);
         await savedCar.save();
-        showMessage("✅ 已更新付款資料");
+        finalize("✅ 已更新付款資料");
         return;
       } else if (currentTab === RECEIPT_TAB_INDEX) {
         let savedCar = car;
@@ -929,7 +934,7 @@ function InventoryNewContent() {
         }));
         savedCar.set("receipts", receipts);
         await savedCar.save();
-        showMessage("✅ 已更新收款資料");
+        finalize("✅ 已更新收款資料");
         return;
       } else if (currentTab === FEE_TAB_INDEX) {
         let savedCar = car;
@@ -949,7 +954,7 @@ function InventoryNewContent() {
         }));
         savedCar.set("fees", fees);
         await savedCar.save();
-        showMessage("✅ 已更新費用資料");
+        finalize("✅ 已更新費用資料");
         return;
       }
 
