@@ -222,7 +222,7 @@ function InventoryNewContent() {
         factoryCert: "",
         copyFlag: "",
         plate: "",
-        taxStatus: "",
+        taxStatus: [],
         remark: "",
         images: [],
       },
@@ -260,14 +260,9 @@ function InventoryNewContent() {
     },
   });
 
-  const {
-    control,
-    handleSubmit,
-    setValue,
-    getValues,
-    reset,
-    formState: { errors, isSubmitting },
-  } = form;
+  const { control, handleSubmit, setValue, getValues, reset, formState } = form;
+
+  const { errors, isSubmitting, dirtyFields } = formState;
 
   // 🔭 Watch source fields across tabs
   const [origDealPriceWan, origCommissionWan, newDealPriceWan] = useWatch({
@@ -409,7 +404,7 @@ function InventoryNewContent() {
             factoryCert: "",
             copyFlag: "",
             plate: "",
-            taxStatus: "",
+            taxStatus: [],
             remark: "",
             images: [],
           },
@@ -430,7 +425,7 @@ function InventoryNewContent() {
           factoryCert: doc?.factoryCert ?? "",
           copyFlag: doc?.copyFlag ?? "",
           plate: doc?.plate ?? "",
-          taxStatus: doc?.taxStatus ?? "",
+          taxStatus: doc?.taxStatus ?? [],
           remark: doc?.remark ?? "",
           images: normalizeImages(doc?.images),
         };
@@ -978,6 +973,144 @@ function InventoryNewContent() {
     }
   };
 
+  // Helper: recursively check if any dirty flag is true
+  const isDirtyTree = (node: any): boolean => {
+    if (!node) return false;
+    if (node === true) return true;
+
+    if (Array.isArray(node)) {
+      return node.some((child) => isDirtyTree(child));
+    }
+    if (typeof node === "object") {
+      return Object.values(node).some((child) => isDirtyTree(child));
+    }
+    return false;
+  };
+
+  const isTabDirty = (tabIndex: number, df: typeof dirtyFields): boolean => {
+    switch (tabIndex) {
+      // 基本資料 + 上面的固定欄位
+      case BASIC_TAB_INDEX:
+        return hasDirtyByPaths(df, [
+          "plateNo",
+          "prevPlateNo",
+          "deliverDate",
+          "brandId",
+          "brandName",
+          "seriesCategory",
+          "style",
+          "buyPriceWan",
+          "sellPriceWan",
+          "factoryYM",
+          "plateYM",
+          "model",
+          "displacementCc",
+          "transmission",
+          "color",
+          "engineNo",
+          "vin",
+          "dealerName",
+          "equipment",
+          "remark",
+          "condition",
+          "inboundDate",
+          "promisedDate",
+          "returnDate",
+          "disposition",
+          "images", // 上方圖片欄位如果有
+        ]);
+
+      // 證件 tab
+      case DOCUMENT_TAB_INDEX:
+        return isDirtyTree(df.document);
+
+      // 入車 tab
+      case INBOUND_TAB_INDEX:
+        return isDirtyTree(df.inbound);
+
+      // 原車主 tab
+      case ORIGINAL_OWNER_TAB_INDEX:
+        return hasDirtyByPaths(df, [
+          "origOwnerName",
+          "origOwnerIdNo",
+          "origOwnerBirth",
+          "origOwnerRegAddr",
+          "origOwnerMailAddr",
+          "consignorName",
+          "consignorPhone",
+          "referrerName",
+          "referrerPhone",
+          "purchasedTransferred",
+          "registeredToName",
+          "procurementMethod",
+          "origOwnerNote",
+          "origContractDate",
+          "origDealPriceWan",
+          "origCommissionWan",
+          "origOwnerPhone",
+          "origOwnerRegZip",
+          "origOwnerMailZip",
+        ]);
+
+      // 保險/貸款 tab
+      case INSURANCE_TAB_INDEX:
+        return isDirtyTree(df.insurance);
+
+      // 新車主 tab
+      case NEW_OWNER_TAB_INDEX:
+        return hasDirtyByPaths(df, [
+          "newOwnerName",
+          "newOwnerPhone",
+          "newOwnerEmail",
+          "newContractDate",
+          "newDealPriceWan",
+          "newCommissionWan",
+          "handoverDate",
+          "newOwnerIdNo",
+          "newOwnerBirth",
+          "newOwnerRegAddr",
+          "newOwnerRegZip",
+          "newOwnerMailAddr",
+          "newOwnerMailZip",
+          "buyerAgentName",
+          "buyerAgentPhone",
+          "referrerName2",
+          "referrerPhone2",
+          "salesmanName",
+          "salesCommissionPct",
+          "salesMode",
+          "preferredShop",
+          "newOwnerNote",
+          "isPeer",
+        ]);
+
+      // 付款 / 收款 / 費用 tab：整個陣列只要有 dirty 就算
+      case PAYMENT_TAB_INDEX:
+        return isDirtyTree(df.payments);
+      case RECEIPT_TAB_INDEX:
+        return isDirtyTree(df.receipts);
+      case FEE_TAB_INDEX:
+        return isDirtyTree(df.fees);
+
+      default:
+        return false;
+    }
+  };
+
+  // Helper: 用 path 字串來抓 dirtyFields 裡的節點，例如 "document.images"
+  const getByPath = (obj: any, path: string): any => {
+    return path
+      .split(".")
+      .reduce((acc, key) => (acc ? acc[key] : undefined), obj);
+  };
+
+  const hasDirtyByPaths = (
+    df: typeof dirtyFields,
+    paths: string[]
+  ): boolean => {
+    return paths.some((p) => isDirtyTree(getByPath(df, p)));
+  };
+
   /* --------- for payment, receipt, fee tabs --------- */
   const handleTabChange = async (
     _event: React.SyntheticEvent,
@@ -985,9 +1118,9 @@ function InventoryNewContent() {
   ) => {
     const prevTab = tab;
 
-    // 如果是從「付款 / 收款 / 費用」離開，就幫前一個 tab 存一次
-    if (AUTO_SAVE_TABS.includes(prevTab)) {
-      autoSaveForTab(prevTab); // fire-and-forget; 不 block UI
+    // 只有前一個 tab 有在 AUTO_SAVE_TABS 裡，且有 dirty，才自動儲存
+    if (AUTO_SAVE_TABS.includes(prevTab) && isTabDirty(prevTab, dirtyFields)) {
+      autoSaveForTab(prevTab); // fire-and-forget，不 block UI
     }
 
     setTab(nextTab);

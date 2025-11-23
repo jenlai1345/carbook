@@ -10,6 +10,8 @@ import {
   FormControlLabel,
   Radio,
   Typography,
+  Checkbox,
+  FormGroup,
 } from "@mui/material";
 import { Controller, Control } from "react-hook-form";
 import dayjs from "dayjs";
@@ -265,24 +267,46 @@ export default function DocumentTab({ control }: Props) {
         </Grid>
 
         {/* 稅金 */}
+        {/* 稅金 */}
         <Grid size={{ xs: 12, sm: 6, md: 6 }}>
           <FormControl component="fieldset">
             <FormLabel>稅金</FormLabel>
             <Controller
               name="document.taxStatus"
               control={control}
-              render={({ field }) => (
-                <RadioGroup row {...field}>
-                  {["已繳", "未稅", "牌照", "燃料"].map((opt) => (
-                    <FormControlLabel
-                      key={opt}
-                      value={opt}
-                      control={<Radio size="small" />}
-                      label={opt}
-                    />
-                  ))}
-                </RadioGroup>
-              )}
+              render={({ field }) => {
+                const value: string[] = field.value ?? [];
+                const options = ["已繳", "未稅", "牌照", "燃料"];
+
+                return (
+                  <FormGroup row>
+                    {options.map((opt) => {
+                      const checked = value.includes(opt);
+                      return (
+                        <FormControlLabel
+                          key={opt}
+                          label={opt}
+                          control={
+                            <Checkbox
+                              size="small"
+                              checked={checked}
+                              onChange={(_, isChecked) => {
+                                if (isChecked) {
+                                  field.onChange([...value, opt]);
+                                } else {
+                                  field.onChange(
+                                    value.filter((v) => v !== opt)
+                                  );
+                                }
+                              }}
+                            />
+                          }
+                        />
+                      );
+                    })}
+                  </FormGroup>
+                );
+              }}
             />
           </FormControl>
         </Grid>

@@ -67,11 +67,7 @@ export const documentDetailSchema = z.object({
     .default(""),
   copyFlag: z.enum(["無", "有"]).optional().or(z.literal("")).default(""),
   plate: z.enum(["無", "有", "缺"]).optional().or(z.literal("")).default(""),
-  taxStatus: z
-    .enum(["已繳", "未稅", "牌照", "燃料"])
-    .optional()
-    .or(z.literal(""))
-    .default(""),
+  taxStatus: z.array(z.enum(["已繳", "未稅", "牌照", "燃料"])).default([]),
   remark: z.string().optional().or(z.literal("")),
   images: z.array(uploadedImageSchema).optional().default([]),
 });
