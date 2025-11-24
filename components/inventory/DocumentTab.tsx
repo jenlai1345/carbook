@@ -12,16 +12,34 @@ import {
   Typography,
   Checkbox,
   FormGroup,
+  TextField,
 } from "@mui/material";
 import { Controller, Control } from "react-hook-form";
-import dayjs from "dayjs";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { DATE_TF_PROPS } from "../mui";
 import type { FormValues } from "@/schemas/carSchemas";
 import RHFImageUpload from "@/components/RHFImageUpload";
 import RHFTextField from "@/components/RHFTextField";
-import RHFDatePicker from "../RHFDatePicker";
 import RHFEngNumTextField from "../RHFEngNumTextField";
+
+/** 將使用者輸入自動整理成 民國年 YYY/MM/DD */
+function formatRocDateInput(input: string): string {
+  // 只留數字，限制最多 7 碼（YYYMMDD）
+  const digits = input.replace(/\D/g, "").slice(0, 7);
+
+  if (!digits) return "";
+
+  if (digits.length <= 3) {
+    // 只輸入到年
+    return digits;
+  }
+
+  if (digits.length <= 5) {
+    // YYYMM
+    return `${digits.slice(0, 3)}/${digits.slice(3)}`;
+  }
+
+  // YYYMMDD
+  return `${digits.slice(0, 3)}/${digits.slice(3, 5)}/${digits.slice(5)}`;
+}
 
 /** ---------- Document Tab（含圖片上傳） ---------- */
 type Props = { control: Control<FormValues, any, any> };
@@ -165,12 +183,26 @@ export default function DocumentTab({ control }: Props) {
           </FormControl>
         </Grid>
 
-        {/* 驗車日期 */}
+        {/* 驗車(民國) — 文字輸入、自動補斜線 */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <RHFDatePicker
-            control={control}
+          <Controller
             name="document.inspectDate"
-            label="驗車日期"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                label="驗車(民國)"
+                fullWidth
+                placeholder="例如：114/05/20"
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                inputMode="numeric"
+                onChange={(e) => {
+                  const formatted = formatRocDateInput(e.target.value);
+                  field.onChange(formatted);
+                }}
+              />
+            )}
           />
         </Grid>
 
@@ -266,7 +298,6 @@ export default function DocumentTab({ control }: Props) {
           </FormControl>
         </Grid>
 
-        {/* 稅金 */}
         {/* 稅金 */}
         <Grid size={{ xs: 12, sm: 6, md: 6 }}>
           <FormControl component="fieldset">
