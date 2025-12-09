@@ -79,28 +79,39 @@ const SEARCHABLE_KEYS: (keyof Car)[] = [
 /** Client-side keyword filter (keeps UI snappy). Switch to server-side OR queries if dataset grows. */
 export function matchesKeyword(car: Car, kw: string) {
   if (!kw) return true;
-  const needle = kw.trim().toLowerCase();
-  if (!needle) return true;
+
+  // 轉小寫 + 依逗號 / 空白切成多個 term
+  const terms = kw
+    .toLowerCase()
+    .split(/[,\s]+/) // 逗號或任何空白都算分隔
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  if (terms.length === 0) return true;
 
   // text fields
   const textBlob = SEARCHABLE_KEYS.map((k) => (car[k] ?? "").toString())
     .join(" \n ")
     .toLowerCase();
 
-  if (textBlob.includes(needle)) return true;
-
   // numeric-ish fields (buy/sell price, displacement)
   const numericBlob = [car.buyPriceWan, car.sellPriceWan, car.displacementCc]
     .filter((v) => v !== undefined && v !== null)
     .join(" ");
 
-  if (numericBlob && numericBlob.includes(needle)) return true;
-
   // year/month strings
-  const ymBlob = [car.factoryYM, car.plateYM].filter(Boolean).join(" ");
-  if (ymBlob && ymBlob.toLowerCase().includes(needle)) return true;
+  const ymBlob = [car.factoryYM, car.plateYM]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
-  return false;
+  // ✅ 每個 term 都要 match 到「任一欄位」→ AND 邏輯
+  return terms.every((term) => {
+    if (textBlob.includes(term)) return true;
+    if (numericBlob && numericBlob.includes(term)) return true;
+    if (ymBlob && ymBlob.includes(term)) return true;
+    return false;
+  });
 }
 
 // ---------- helpers----------
